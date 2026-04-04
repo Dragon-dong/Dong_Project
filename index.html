@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨模态内容生成系统（大模型增强版）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 登录模态框 */
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .login-modal.hidden {
+            display: none;
+        }
+        
+        .login-form {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        .login-form h2 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .login-form .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .login-form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .login-form input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .login-form input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .login-form .btn {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .login-form .form-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .login-form .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .login-form .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .login-form .form-tab {
+            display: none;
+        }
+        
+        .login-form .form-tab.active {
+            display: block;
+        }
+        
+        .login-form .error-message {
+            color: #dc3545;
+            margin-top: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .login-form .form-footer {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .login-form .form-footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .login-form .form-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .container {
+            flex: 1;
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 20px;
+            min-height: 80vh;
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tab-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tab-content {
+            flex: 1;
+            min-height: 500px;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .header-content {
+            text-align: center;
+            flex: 1;
+            z-index: 5;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 12px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-left: 20px;
+            white-space: nowrap;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .logout-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #666;
+        }
+        
+        .language-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .lang-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .lang-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .tab-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button.active {
+            background: #fff;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-button:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .tab-content {
+            padding: 25px;
+        }
+        
+        .tab-pane {
+            display: none;
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        .function-section {
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        h2 {
+            color: #444;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+        
+        .file-upload {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .file-upload:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .file-upload input[type="file"] {
+            display: none;
+        }
+        
+        .preview-area {
+            margin-top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #eee;
+        }
+        
+        .preview-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        #image-preview {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        
+        #text-preview {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+        }
+        
+        .story-preview {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .story-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .story-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .story-caption {
+            font-style: italic;
+            color: #666;
+            margin: 10px 0;
+        }
+        
+        .timeline {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 2px solid #eee;
+        }
+        
+        .timeline-items {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 10px 0;
+            min-height: 200px;
+        }
+        
+        .timeline-item {
+            min-width: 150px;
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: move;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .timeline-item:hover {
+            background: #e0e0e0;
+            transform: scale(1.05);
+        }
+        
+        .timeline-item.dragging {
+            opacity: 0.5;
+            transform: scale(1.1);
+            border: 2px solid #667eea;
+        }
+        
+        .timeline-item.drag-over {
+            border: 2px dashed #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .style-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .style-preset {
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            border: 2px solid transparent;
+        }
+        
+        .style-preset:hover {
+            background: #e0e0e0;
+        }
+        
+        .style-preset.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        /* 对话侧栏 */
+        .chat-sidebar {
+            width: 350px;
+            min-width: 350px;
+            max-width: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 80vh;
+        }
+        
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+            border-radius: 15px 15px 0 0;
+        }
+        
+        .chat-header h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 400px;
+        }
+        
+        .chat-message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-message.user {
+            align-items: flex-end;
+        }
+        
+        .chat-message.bot {
+            align-items: flex-start;
+        }
+        
+        .message-content {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            background: #f0f0f0;
+            position: relative;
+        }
+        
+        .chat-message.user .message-content {
+            background: #667eea;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .chat-message.bot .message-content {
+            background: #f0f0f0;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-time {
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 5px;
+        }
+        
+        .chat-input {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            background: #f8f9fa;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .chat-input textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            resize: none;
+            min-height: 80px;
+            font-size: 1rem;
+        }
+        
+        .chat-input textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .chat-input .btn {
+            margin-top: 10px;
+            width: 100%;
+            margin-right: 0;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .chat-sidebar {
+                width: 100%;
+                margin-top: 20px;
+                max-height: 400px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab-button {
+                text-align: left;
+            }
+            
+            .btn {
+                width: 100%;
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            
+            header {
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
+            }
+            
+            .user-info {
+                margin-left: 0;
+                margin-top: 10px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录模态框 -->
+    <div class="login-modal" id="login-modal">
+        <div class="login-form">
+            <h2>用户登录/注册</h2>
+            <div class="form-tabs">
+                <button class="tab-btn active" data-tab="login">登录</button>
+                <button class="tab-btn" data-tab="register">注册</button>
+            </div>
+            
+            <!-- 登录表单 -->
+            <div id="login-tab" class="form-tab active">
+                <div class="input-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" placeholder="请输入用户名">
+                </div>
+                <div class="input-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" placeholder="请输入密码">
+                </div>
+                <div style="margin-top: 20px; display: flex; justify-content: center; gap: 10px;">
+                    <button class="btn" onclick="login()" style="flex: 1; max-width: 200px;">登录</button>
+                    <button class="btn btn-secondary" onclick="switchToRegister()" style="flex: 1; max-width: 200px;">注册</button>
+                </div>
+                <div class="error-message" id="login-error"></div>
+            </div>
+            
+            <!-- 注册表单 -->
+            <div id="register-tab" class="form-tab">
+                <div class="input-group">
+                    <label for="reg-username">用户名 <span style="color: #666; font-weight: normal; font-size: 0.9rem;">(3-20个字符)</span></label>
+                    <input type="text" id="reg-username" placeholder="请输入用户名">
+                </div>
+                <div class="input-group">
+                    <label for="reg-email">邮箱 <span style="color: #666; font-weight: normal; font-size: 0.9rem;">(选填)</span></label>
+                    <input type="email" id="reg-email" placeholder="请输入邮箱（选填）">
+                </div>
+                <div class="input-group">
+                    <label for="reg-password">密码 <span style="color: #666; font-weight: normal; font-size: 0.9rem;">(至少6个字符)</span></label>
+                    <input type="password" id="reg-password" placeholder="请输入密码">
+                </div>
+                <div class="input-group">
+                    <label for="reg-confirm-password">确认密码</label>
+                    <input type="password" id="reg-confirm-password" placeholder="请确认密码">
+                </div>
+                <div style="margin-top: 20px; display: flex; justify-content: center; gap: 10px;">
+                    <button class="btn" onclick="register()" style="flex: 1; max-width: 200px;">注册</button>
+                    <button class="btn btn-secondary" onclick="switchToLogin()" style="flex: 1; max-width: 200px;">登录</button>
+                </div>
+                <div class="error-message" id="register-error"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="main-content">
+            <header>
+                <div class="header-content">
+                    <h1>跨模态内容生成系统</h1>
+                    <p class="subtitle">大模型增强版 - 文生图 · 图生文 · 动态叙事 · 风格控制</p>
+                </div>
+                <div class="user-info" id="user-info" style="display: none;">
+                    <div class="user-avatar" id="user-avatar">U</div>
+                    <span class="user-name" id="user-name">用户名</span>
+                    <button class="logout-btn" onclick="logout()">退出</button>
+                </div>
+            </header>
+            
+            <div class="language-selector">
+                <button class="lang-btn active" data-lang="zh">中文</button>
+                <button class="lang-btn" data-lang="en">English</button>
+                <button class="lang-btn" data-lang="ja">日本語</button>
+            </div>
+            
+            <div class="tab-container">
+                <div class="tabs">
+                    <button class="tab-button active" data-tab="text-to-image">文生图</button>
+                    <button class="tab-button" data-tab="image-to-text">图生文</button>
+                    <button class="tab-button" data-tab="dynamic-narrative">动态叙事</button>
+                    <button class="tab-button" data-tab="style-transfer">风格迁移</button>
+                </div>
+                
+                <div class="tab-content">
+                    <!-- 文生图 -->
+                    <div id="text-to-image" class="tab-pane active">
+                        <div class="function-section">
+                            <h2>文本生成图像</h2>
+                            <div class="input-group">
+                                <label for="text-prompt">描述文本</label>
+                                <textarea id="text-prompt" placeholder="请输入图像描述，例如：一只可爱的猫在阳光下睡觉"></textarea>
+                            </div>
+                            <div class="input-group">
+                                <label for="image-style">风格选择</label>
+                                <div class="style-presets">
+                                    <span class="style-preset">写实风格</span>
+                                    <span class="style-preset">卡通风格</span>
+                                    <span class="style-preset">油画风格</span>
+                                    <span class="style-preset">水彩风格</span>
+                                    <span class="style-preset">赛博朋克</span>
+                                    <span class="style-preset">中国风</span>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="custom-style">自定义风格指令</label>
+                                <input type="text" id="custom-style" placeholder="例如：赛博朋克风格+水墨画笔触">
+                            </div>
+                            <div class="input-group">
+                                <button class="btn" onclick="generateImage()">生成图像</button>
+                                <button class="btn btn-secondary" onclick="clearImage()">清空</button>
+                            </div>
+                            <div class="loading" id="image-loading">生成中，请稍候...</div>
+                        </div>
+                        <div class="preview-area">
+                            <div class="preview-title">生成结果</div>
+                            <div id="image-preview"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 图生文 -->
+                    <div id="image-to-text" class="tab-pane">
+                        <div class="function-section">
+                            <h2>图像生成描述</h2>
+                            <div class="input-group">
+                                <label for="image-upload">上传图像</label>
+                                <div class="file-upload" onclick="document.getElementById('image-file').click()">
+                                    <input type="file" id="image-file" accept="image/*" style="display: none;" onchange="previewUploadedImage(event)">
+                                    <div id="upload-placeholder">
+                                        <p>点击或拖拽图像到此处上传</p>
+                                        <p style="font-size: 0.9rem; color: #666;">支持 JPG、PNG、WebP 格式</p>
+                                    </div>
+                                    <img id="upload-preview" style="display: none; max-width: 100%; height: auto; border-radius: 8px;">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <button class="btn" onclick="generateText()">生成描述</button>
+                                <button class="btn btn-secondary" onclick="clearText()">清空</button>
+                            </div>
+                            <div class="loading" id="text-loading">生成中，请稍候...</div>
+                        </div>
+                        <div class="preview-area">
+                            <div class="preview-title">生成结果</div>
+                            <div id="text-preview"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 动态叙事 -->
+                    <div id="dynamic-narrative" class="tab-pane">
+                        <div class="function-section">
+                            <h2>动态叙事生成</h2>
+                            <div class="input-group">
+                                <label for="story-keywords">关键词</label>
+                                <input type="text" id="story-keywords" placeholder="请输入关键词，用逗号分隔，例如：冒险, 森林, 神秘生物">
+                            </div>
+                            <div class="input-group">
+                                <label for="story-style">故事风格</label>
+                                <select id="story-style">
+                                    <option value="fantasy">奇幻</option>
+                                    <option value="sci-fi">科幻</option>
+                                    <option value="mystery">悬疑</option>
+                                    <option value="romance">浪漫</option>
+                                    <option value="adventure">冒险</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="story-length">故事长度</label>
+                                <select id="story-length">
+                                    <option value="short">短篇（3-5个场景）</option>
+                                    <option value="medium">中篇（5-8个场景）</option>
+                                    <option value="long">长篇（8-12个场景）</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <button class="btn" onclick="generateStory()">生成故事</button>
+                                <button class="btn btn-secondary" onclick="clearStory()">清空</button>
+                            </div>
+                            <div class="loading" id="story-loading">生成中，请稍候...</div>
+                        </div>
+                        <div class="preview-area">
+                            <div class="preview-title">故事预览</div>
+                            <div id="story-preview"></div>
+                        </div>
+                        <div class="timeline">
+                            <div class="preview-title">时间轴编辑</div>
+                            <div class="timeline-items" id="timeline-items">
+                                <!-- 时间轴项目将通过JavaScript动态生成 -->
+                            </div>
+                            <div style="margin-top: 20px; text-align: center;">
+                                <button class="btn" onclick="generateStoryFromTimeline()">生成故事内容</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 风格迁移 -->
+                    <div id="style-transfer" class="tab-pane">
+                        <div class="function-section">
+                            <h2>风格迁移控制</h2>
+                            <div class="input-group">
+                                <label for="style-image-upload">上传原始图像</label>
+                                <div class="file-upload" onclick="document.getElementById('style-image-file').click()">
+                                    <input type="file" id="style-image-file" accept="image/*" style="display: none;" onchange="previewStyleImage(event)">
+                                    <div id="style-upload-placeholder">
+                                        <p>点击或拖拽图像到此处上传</p>
+                                        <p style="font-size: 0.9rem; color: #666;">支持 JPG、PNG、WebP 格式</p>
+                                    </div>
+                                    <img id="style-upload-preview" style="display: none; max-width: 100%; height: auto; border-radius: 8px;">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="style-instruction">风格指令</label>
+                                <textarea id="style-instruction" placeholder="请输入风格指令，例如：将这幅画转换为梵高星空风格"></textarea>
+                            </div>
+                            <div class="input-group">
+                                <button class="btn" onclick="transferStyle()">风格迁移</button>
+                                <button class="btn btn-secondary" onclick="clearStyle()">清空</button>
+                            </div>
+                            <div class="loading" id="style-loading">生成中，请稍候...</div>
+                        </div>
+                        <div class="preview-area">
+                            <div class="preview-title">风格迁移结果</div>
+                            <div id="style-preview"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 对话侧栏 -->
+        <div class="chat-sidebar">
+            <div class="chat-header">
+                <h3>智能助手</h3>
+                <p style="font-size: 0.9rem; color: #666;">有什么可以帮助您的？</p>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-message bot">
+                    <div class="message-content">
+                        你好！我是跨模态内容生成系统的智能助手。请问有什么可以帮助您的？
+                    </div>
+                    <div class="message-time">刚刚</div>
+                </div>
+            </div>
+            <div class="chat-input">
+                <textarea id="chat-input" placeholder="输入您的问题..."></textarea>
+                <button class="btn" onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 语言资源文件 -->
+    <script src="static/locales/i18n.js"></script>
+    
+    <script>
+        // 当前语言
+        let currentLang = 'zh';
+        
+        // 初始化页面
+        function initPage() {
+            updateLanguage(currentLang);
+        }
+        
+        // 更新页面语言
+        function updateLanguage(lang) {
+            currentLang = lang;
+            const langData = i18n[lang];
+            
+            // 更新页面标题
+            document.querySelector('h1').textContent = langData.title;
+            document.querySelector('.subtitle').textContent = langData.subtitle;
+            
+            // 更新标签页
+            document.querySelector('[data-tab="text-to-image"]').textContent = langData.textToImage;
+            document.querySelector('[data-tab="image-to-text"]').textContent = langData.imageToText;
+            document.querySelector('[data-tab="dynamic-narrative"]').textContent = langData.dynamicNarrative;
+            document.querySelector('[data-tab="style-transfer"]').textContent = langData.styleTransfer;
+            
+            // 更新文生图部分
+            document.querySelector('#text-to-image h2').textContent = langData.textToImageTitle;
+            document.querySelector('#text-to-image label[for="text-prompt"]').textContent = langData.textPrompt;
+            document.getElementById('text-prompt').placeholder = langData.textPromptPlaceholder;
+            document.querySelector('#text-to-image label[for="image-style"]').textContent = langData.imageStyle;
+            document.querySelector('#text-to-image label[for="custom-style"]').textContent = langData.customStyle;
+            document.getElementById('custom-style').placeholder = langData.customStylePlaceholder;
+            document.querySelector('#text-to-image .btn:nth-child(1)').textContent = langData.generateImage;
+            document.querySelector('#text-to-image .btn:nth-child(2)').textContent = langData.clearImage;
+            document.getElementById('image-loading').textContent = langData.generating;
+            document.querySelector('#text-to-image .preview-title').textContent = langData.generationResult;
+            
+            // 更新图生文部分
+            document.querySelector('#image-to-text h2').textContent = langData.imageToTextTitle;
+            document.querySelector('#image-to-text label[for="image-upload"]').textContent = langData.uploadImage;
+            document.querySelector('#upload-placeholder p:nth-child(1)').textContent = langData.uploadPlaceholder;
+            document.querySelector('#upload-placeholder p:nth-child(2)').textContent = langData.uploadFormat;
+            document.querySelector('#image-to-text .btn:nth-child(1)').textContent = langData.generateText;
+            document.querySelector('#image-to-text .btn:nth-child(2)').textContent = langData.clearText;
+            document.getElementById('text-loading').textContent = langData.generating;
+            document.querySelector('#image-to-text .preview-title').textContent = langData.generationResult;
+            
+            // 更新动态叙事部分
+            document.querySelector('#dynamic-narrative h2').textContent = langData.dynamicNarrativeTitle;
+            document.querySelector('#dynamic-narrative label[for="story-keywords"]').textContent = langData.storyKeywords;
+            document.getElementById('story-keywords').placeholder = langData.storyKeywordsPlaceholder;
+            document.querySelector('#dynamic-narrative label[for="story-style"]').textContent = langData.storyStyle;
+            document.querySelector('#dynamic-narrative label[for="story-length"]').textContent = langData.storyLength;
+            
+            // 更新故事风格选项
+            const storyStyleSelect = document.getElementById('story-style');
+            storyStyleSelect.innerHTML = '';
+            for (const [value, text] of Object.entries(langData.storyStyleOptions)) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                storyStyleSelect.appendChild(option);
+            }
+            
+            // 更新故事长度选项
+            const storyLengthSelect = document.getElementById('story-length');
+            storyLengthSelect.innerHTML = '';
+            for (const [value, text] of Object.entries(langData.storyLengthOptions)) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                storyLengthSelect.appendChild(option);
+            }
+            
+            document.querySelector('#dynamic-narrative .btn:nth-child(1)').textContent = langData.generateStory;
+            document.querySelector('#dynamic-narrative .btn:nth-child(2)').textContent = langData.clearStory;
+            document.getElementById('story-loading').textContent = langData.generating;
+            document.querySelector('#dynamic-narrative .preview-title:nth-child(1)').textContent = langData.storyPreview;
+            document.querySelector('#dynamic-narrative .preview-title:nth-child(2)').textContent = langData.timelineEdit;
+            
+            // 更新风格迁移部分
+            document.querySelector('#style-transfer h2').textContent = langData.styleTransferTitle;
+            document.querySelector('#style-transfer label[for="style-image-upload"]').textContent = langData.uploadOriginalImage;
+            document.querySelector('#style-upload-placeholder p:nth-child(1)').textContent = langData.uploadPlaceholder;
+            document.querySelector('#style-upload-placeholder p:nth-child(2)').textContent = langData.uploadFormat;
+            document.querySelector('#style-transfer label[for="style-instruction"]').textContent = langData.styleInstruction;
+            document.getElementById('style-instruction').placeholder = langData.styleInstructionPlaceholder;
+            document.querySelector('#style-transfer .btn:nth-child(1)').textContent = langData.transferStyle;
+            document.querySelector('#style-transfer .btn:nth-child(2)').textContent = langData.clearStyle;
+            document.getElementById('style-loading').textContent = langData.generating;
+            document.querySelector('#style-transfer .preview-title').textContent = langData.styleTransferResult;
+            
+            // 更新智能助手部分
+            document.querySelector('.chat-header h3').textContent = langData.smartAssistant;
+            document.querySelector('.chat-header p').textContent = langData.assistantGreeting;
+            document.getElementById('chat-input').placeholder = langData.chatPlaceholder;
+            document.querySelector('.chat-input .btn').textContent = langData.send;
+            
+            // 更新登录/注册部分
+            document.querySelector('.login-form h2').textContent = langData.loginRegister;
+            document.querySelector('[data-tab="login"]').textContent = langData.login;
+            document.querySelector('[data-tab="register"]').textContent = langData.register;
+            document.querySelector('#login-tab label[for="username"]').textContent = langData.username;
+            document.querySelector('#login-tab label[for="password"]').textContent = langData.password;
+            document.querySelector('#login-tab .btn:nth-child(1)').textContent = langData.login;
+            document.querySelector('#login-tab .btn:nth-child(2)').textContent = langData.register;
+            
+            document.querySelector('#register-tab label[for="reg-username"]').textContent = langData.username;
+            document.querySelector('#register-tab label[for="reg-email"]').textContent = langData.email;
+            document.querySelector('#register-tab label[for="reg-password"]').textContent = langData.password;
+            document.querySelector('#register-tab label[for="reg-confirm-password"]').textContent = langData.confirmPassword;
+            document.querySelector('#register-tab .btn:nth-child(1)').textContent = langData.register;
+            document.querySelector('#register-tab .btn:nth-child(2)').textContent = langData.login;
+            
+            // 更新风格预设
+            const stylePresets = document.querySelectorAll('.style-preset');
+            stylePresets.forEach((preset, index) => {
+                if (index < langData.stylePresets.length) {
+                    preset.textContent = langData.stylePresets[index];
+                }
+            });
+            
+            // 更新语言选择按钮
+            const langButtons = document.querySelectorAll('.lang-btn');
+            langButtons.forEach(button => {
+                const langCode = button.dataset.lang;
+                button.textContent = langData.languages[langCode];
+            });
+        }
+        
+        // 页面加载完成后初始化
+        window.onload = initPage;
+        // 表单切换功能
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.dataset.tab;
+                
+                // 更新按钮状态
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // 更新表单显示
+                document.querySelectorAll('.form-tab').forEach(tab => tab.classList.remove('active'));
+                document.getElementById(tabId + '-tab').classList.add('active');
+            });
+        });
+        
+        // 切换到注册表单
+        function switchToRegister() {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="register"]').classList.add('active');
+            document.querySelectorAll('.form-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('register-tab').classList.add('active');
+        }
+        
+        // 切换到登录表单
+        function switchToLogin() {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="login"]').classList.add('active');
+            document.querySelectorAll('.form-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('login-tab').classList.add('active');
+        }
+        
+        // 登录功能
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorElement = document.getElementById('login-error');
+            
+            if (!username || !password) {
+                errorElement.textContent = '请输入用户名和密码';
+                return;
+            }
+            
+            try {
+                // 调用后端登录API
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                const response = await fetch('http://localhost:8000/api/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // 登录成功
+                    document.getElementById('login-modal').classList.add('hidden');
+                    document.getElementById('user-info').style.display = 'flex';
+                    document.getElementById('user-name').textContent = username;
+                    document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
+                    errorElement.textContent = '';
+                    
+                    // 显示欢迎消息
+                    addChatMessage('bot', '欢迎回来，' + username + '！有什么可以帮助您的吗？');
+                } else {
+                    errorElement.textContent = data.message || '用户名或密码错误';
+                }
+            } catch (error) {
+                console.error('登录出错:', error);
+                //  fallback to mock login
+                if (username === 'admin' && password === '123456') {
+                    // 登录成功
+                    document.getElementById('login-modal').classList.add('hidden');
+                    document.getElementById('user-info').style.display = 'flex';
+                    document.getElementById('user-name').textContent = username;
+                    document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
+                    errorElement.textContent = '';
+                    
+                    // 显示欢迎消息
+                    addChatMessage('bot', '欢迎回来，' + username + '！有什么可以帮助您的吗？');
+                } else {
+                    errorElement.textContent = '用户名或密码错误';
+                }
+            }
+        }
+        
+        // 注册功能
+        async function register() {
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+            const errorElement = document.getElementById('register-error');
+            
+            // 验证用户名
+            if (!username) {
+                errorElement.textContent = '请输入用户名';
+                return;
+            }
+            if (username.length < 3 || username.length > 20) {
+                errorElement.textContent = '用户名长度应在3-20个字符之间';
+                return;
+            }
+            
+            // 验证密码
+            if (!password) {
+                errorElement.textContent = '请输入密码';
+                return;
+            }
+            if (password.length < 6) {
+                errorElement.textContent = '密码长度至少为6个字符';
+                return;
+            }
+            
+            // 验证确认密码
+            if (!confirmPassword) {
+                errorElement.textContent = '请确认密码';
+                return;
+            }
+            if (password !== confirmPassword) {
+                errorElement.textContent = '两次输入的密码不一致';
+                return;
+            }
+            
+            try {
+                // 调用后端注册API
+                const formData = new FormData();
+                formData.append('username', username);
+                if (email) {
+                    formData.append('email', email);
+                }
+                formData.append('password', password);
+                
+                const response = await fetch('http://localhost:8000/api/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // 注册成功，切换到登录表单
+                    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                    document.querySelector('[data-tab="login"]').classList.add('active');
+                    document.querySelectorAll('.form-tab').forEach(tab => tab.classList.remove('active'));
+                    document.getElementById('login-tab').classList.add('active');
+                    
+                    // 填充用户名
+                    document.getElementById('username').value = username;
+                    document.getElementById('password').value = '';
+                    
+                    errorElement.textContent = '';
+                    document.getElementById('login-error').textContent = '注册成功，请登录';
+                } else {
+                    errorElement.textContent = data.message || '注册失败，请重试';
+                }
+            } catch (error) {
+                console.error('注册出错:', error);
+                // fallback to mock register
+                errorElement.textContent = '注册功能暂时不可用，请使用默认账号登录';
+            }
+        }
+        
+        // 退出功能
+        function logout() {
+            document.getElementById('login-modal').classList.remove('hidden');
+            document.getElementById('user-info').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('login-error').textContent = '';
+            
+            // 重置聊天
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="chat-message bot">
+                    <div class="message-content">
+                        你好！我是跨模态内容生成系统的智能助手。请问有什么可以帮助您的？
+                    </div>
+                    <div class="message-time">刚刚</div>
+                </div>
+            `;
+        }
+        
+        // 发送聊天消息
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // 添加用户消息
+            addChatMessage('user', message);
+            input.value = '';
+            
+            // 模拟AI回复
+            setTimeout(() => {
+                let response;
+                
+                // 简单的关键词匹配
+                if (message.includes('你好') || message.includes('hello') || message.includes('hi')) {
+                    response = '你好！我是跨模态内容生成系统的智能助手，有什么可以帮助您的？';
+                } else if (message.includes('文生图') || message.includes('生成图像')) {
+                    response = '您可以在"文生图"标签页中输入描述文本，选择风格，然后点击"生成图像"按钮来创建图像。';
+                } else if (message.includes('图生文') || message.includes('图像描述')) {
+                    response = '您可以在"图生文"标签页中上传图像，然后点击"生成描述"按钮来获取图像的详细描述。';
+                } else if (message.includes('动态叙事') || message.includes('故事')) {
+                    response = '您可以在"动态叙事"标签页中输入关键词，选择故事风格和长度，然后点击"生成故事"按钮来创建包含图像的完整故事。';
+                } else if (message.includes('风格迁移') || message.includes('风格转换')) {
+                    response = '您可以在"风格迁移"标签页中上传图像，输入风格指令，然后点击"风格迁移"按钮来转换图像风格。';
+                } else if (message.includes('帮助') || message.includes('使用')) {
+                    response = '我可以帮助您使用跨模态内容生成系统。您可以：\n1. 文生图：输入描述生成图像\n2. 图生文：上传图像生成描述\n3. 动态叙事：生成包含图像的故事\n4. 风格迁移：转换图像风格\n请问您需要什么帮助？';
+                } else {
+                    response = '感谢您的消息。我是跨模态内容生成系统的智能助手，可以帮助您使用系统的各项功能。请问您需要什么帮助？';
+                }
+                
+                addChatMessage('bot', response);
+            }, 1000);
+        }
+        
+        // 添加聊天消息
+        function addChatMessage(type, content) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${type}`;
+            
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    ${content}
+                </div>
+                <div class="message-time">${timeString}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // 标签切换功能
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.dataset.tab;
+                
+                // 更新按钮状态
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // 更新内容显示
+                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // 语言切换功能
+        document.querySelectorAll('.lang-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                const lang = button.dataset.lang;
+                updateLanguage(lang);
+            });
+        });
+        
+        // 风格预设点击功能
+        document.querySelectorAll('.style-preset').forEach(preset => {
+            preset.addEventListener('click', () => {
+                preset.classList.toggle('active');
+            });
+        });
+        
+        // 调用真实API生成图像
+        async function generateImage() {
+            const loading = document.getElementById('image-loading');
+            const preview = document.getElementById('image-preview');
+            const prompt = document.getElementById('text-prompt').value;
+            
+            if (!prompt) {
+                alert('请输入描述文本');
+                return;
+            }
+            
+            loading.classList.add('active');
+            preview.innerHTML = '';
+            
+            try {
+                // 获取选中的风格
+                const selectedStyles = Array.from(document.querySelectorAll('.style-preset.active'))
+                    .map(preset => preset.textContent)
+                    .join(', ');
+                
+                const customStyle = document.getElementById('custom-style').value;
+                
+                // 调用后端API
+                const response = await fetch('http://localhost:8000/api/text-to-image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        style: selectedStyles || undefined,
+                        custom_style: customStyle || undefined,
+                        resolution: '512x512'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const img = document.createElement('img');
+                    img.src = data.image_url;
+                    img.alt = '生成的图像';
+                    img.id = 'image-preview';
+                    preview.appendChild(img);
+                    
+                    // 添加到聊天记录
+                    addChatMessage('bot', `已为您生成图像："${prompt}"`);
+                } else {
+                    alert('生成图像失败: ' + data.detail);
+                }
+            } catch (error) {
+                console.error('生成图像出错:', error);
+                alert('生成图像失败，请检查后端服务是否运行');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+        
+        // 清空图像
+        function clearImage() {
+            document.getElementById('text-prompt').value = '';
+            document.getElementById('custom-style').value = '';
+            document.getElementById('image-preview').innerHTML = '';
+            document.querySelectorAll('.style-preset').forEach(preset => preset.classList.remove('active'));
+        }
+        
+        // 预览上传的图像
+        function previewUploadedImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('upload-placeholder').style.display = 'none';
+                    const img = document.getElementById('upload-preview');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // 调用真实API生成文本描述
+        async function generateText() {
+            const loading = document.getElementById('text-loading');
+            const preview = document.getElementById('text-preview');
+            const fileInput = document.getElementById('image-file');
+            
+            if (!fileInput.files[0]) {
+                alert('请先上传图像');
+                return;
+            }
+            
+            loading.classList.add('active');
+            preview.innerHTML = '';
+            
+            try {
+                // 创建FormData对象
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                // 调用后端API
+                const response = await fetch('http://localhost:8000/api/image-to-text', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    preview.textContent = data.description;
+                    
+                    // 添加到聊天记录
+                    addChatMessage('bot', '已为您生成图像描述');
+                } else {
+                    alert('生成描述失败: ' + data.detail);
+                }
+            } catch (error) {
+                console.error('生成描述出错:', error);
+                alert('生成描述失败，请检查后端服务是否运行');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+        
+        // 清空图生文内容
+        function clearText() {
+            document.getElementById('image-file').value = '';
+            document.getElementById('upload-placeholder').style.display = 'block';
+            document.getElementById('upload-preview').style.display = 'none';
+            document.getElementById('text-preview').innerHTML = '';
+        }
+        
+        // 调用真实API生成故事
+        async function generateStory() {
+            const loading = document.getElementById('story-loading');
+            const preview = document.getElementById('story-preview');
+            const timeline = document.getElementById('timeline-items');
+            const keywords = document.getElementById('story-keywords').value;
+            const storyStyle = document.getElementById('story-style').value;
+            const storyLength = document.getElementById('story-length').value;
+            
+            if (!keywords) {
+                alert('请输入关键词');
+                return;
+            }
+            
+            loading.classList.add('active');
+            preview.innerHTML = '';
+            timeline.innerHTML = '';
+            
+            try {
+                // 调用后端API
+                const response = await fetch('http://localhost:8000/api/generate-story', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        keywords: keywords,
+                        story_style: storyStyle,
+                        story_length: storyLength
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                // 生成故事预览
+                data.story_items.forEach((item, index) => {
+                    const storyDiv = document.createElement('div');
+                    storyDiv.className = 'story-item';
+                    storyDiv.innerHTML = `
+                        <h3>场景 ${index + 1}</h3>
+                        <img src="${item.image}" alt="场景 ${index + 1}">
+                        <div class="story-caption">${item.caption}</div>
+                        ${item.audio ? `<audio controls src="${item.audio}"></audio>` : ''}
+                    `;
+                    preview.appendChild(storyDiv);
+                    
+                    // 生成时间轴项目
+                    const timelineItem = document.createElement('div');
+                    timelineItem.className = 'timeline-item';
+                    timelineItem.draggable = true;
+                    timelineItem.innerHTML = `
+                        <img src="${item.image}" alt="时间轴 ${index + 1}" style="max-width: 100px; height: auto;">
+                        <p>场景 ${index + 1}</p>
+                    `;
+                    timeline.appendChild(timelineItem);
+                });
+                
+                // 为新生成的时间轴项目添加拖拽功能
+                if (window.setupDragAndDrop) {
+                    window.setupDragAndDrop();
+                }
+                
+                // 添加到聊天记录
+                addChatMessage('bot', `已为您生成${storyLength === 'short' ? '短篇' : storyLength === 'medium' ? '中篇' : '长篇'}${storyStyle}故事`);
+            } else {
+                alert('生成故事失败: ' + data.detail);
+            }
+            } catch (error) {
+                console.error('生成故事出错:', error);
+                alert('生成故事失败，请检查后端服务是否运行');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+        
+        // 清空故事
+        function clearStory() {
+            document.getElementById('story-keywords').value = '';
+            document.getElementById('story-preview').innerHTML = '';
+            document.getElementById('timeline-items').innerHTML = '';
+        }
+        
+        // 预览风格图像
+        function previewStyleImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('style-upload-placeholder').style.display = 'none';
+                    const img = document.getElementById('style-upload-preview');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // 调用真实API进行风格迁移
+        async function transferStyle() {
+            const loading = document.getElementById('style-loading');
+            const preview = document.getElementById('style-preview');
+            const fileInput = document.getElementById('style-image-file');
+            const instruction = document.getElementById('style-instruction').value;
+            
+            if (!fileInput.files[0] || !instruction) {
+                alert('请上传图像并输入风格指令');
+                return;
+            }
+            
+            loading.classList.add('active');
+            preview.innerHTML = '';
+            
+            try {
+                // 创建FormData对象
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('style_instruction', instruction);
+                
+                // 调用后端API
+                const response = await fetch('http://localhost:8000/api/style-transfer', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const img = document.createElement('img');
+                    img.src = data.image_url;
+                    img.alt = '风格迁移后的图像';
+                    preview.appendChild(img);
+                    
+                    // 添加到聊天记录
+                    addChatMessage('bot', `已为您完成风格迁移：${instruction}`);
+                } else {
+                    alert('风格迁移失败: ' + data.detail);
+                }
+            } catch (error) {
+                console.error('风格迁移出错:', error);
+                alert('风格迁移失败，请检查后端服务是否运行');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+        
+        // 清空风格迁移内容
+        function clearStyle() {
+            document.getElementById('style-image-file').value = '';
+            document.getElementById('style-instruction').value = '';
+            document.getElementById('style-upload-placeholder').style.display = 'block';
+            document.getElementById('style-upload-preview').style.display = 'none';
+            document.getElementById('style-preview').innerHTML = '';
+        }
+        
+        // 初始化时间轴拖拽排序功能
+        function initDragAndDrop() {
+            const timelineItems = document.getElementById('timeline-items');
+            
+            // 为每个时间轴项目添加拖拽事件监听器
+            function setupDragAndDrop() {
+                const items = document.querySelectorAll('.timeline-item');
+                
+                items.forEach(item => {
+                    // 添加拖拽开始事件
+                    item.addEventListener('dragstart', function(e) {
+                        this.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+                    
+                    // 添加拖拽结束事件
+                    item.addEventListener('dragend', function() {
+                        this.classList.remove('dragging');
+                        // 移除所有drag-over类
+                        document.querySelectorAll('.timeline-item').forEach(el => {
+                            el.classList.remove('drag-over');
+                        });
+                    });
+                    
+                    // 添加拖拽经过事件
+                    item.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        
+                        // 移除其他项目的drag-over类
+                        document.querySelectorAll('.timeline-item').forEach(el => {
+                            el.classList.remove('drag-over');
+                        });
+                        
+                        // 添加drag-over类到当前项目
+                        this.classList.add('drag-over');
+                    });
+                    
+                    // 添加拖拽离开事件
+                    item.addEventListener('dragleave', function() {
+                        this.classList.remove('drag-over');
+                    });
+                    
+                    // 添加放置事件
+                    item.addEventListener('drop', function(e) {
+                        e.preventDefault();
+                        
+                        const draggingItem = document.querySelector('.timeline-item.dragging');
+                        if (draggingItem !== this) {
+                            // 获取所有时间轴项目
+                            const allItems = Array.from(timelineItems.children);
+                            const draggingIndex = allItems.indexOf(draggingItem);
+                            const dropIndex = allItems.indexOf(this);
+                            
+                            // 根据拖拽方向插入项目
+                            if (draggingIndex < dropIndex) {
+                                timelineItems.insertBefore(draggingItem, this.nextSibling);
+                            } else {
+                                timelineItems.insertBefore(draggingItem, this);
+                            }
+                            
+                            // 更新故事预览顺序
+                            updateStoryPreviewOrder();
+                        }
+                        
+                        // 移除drag-over类
+                        this.classList.remove('drag-over');
+                    });
+                });
+            }
+            
+            // 更新故事预览顺序
+            function updateStoryPreviewOrder() {
+                const timelineItems = document.querySelectorAll('.timeline-item');
+                const storyItems = document.querySelectorAll('.story-item');
+                
+                if (timelineItems.length === storyItems.length) {
+                    // 创建新的故事项目顺序
+                    const newOrder = [];
+                    timelineItems.forEach((item, index) => {
+                        const sceneIndex = parseInt(item.querySelector('p').textContent.match(/场景 (\d+)/)[1]) - 1;
+                        if (sceneIndex >= 0 && sceneIndex < storyItems.length) {
+                            newOrder.push(storyItems[sceneIndex]);
+                        }
+                    });
+                    
+                    // 清空当前故事预览
+                    const storyPreview = document.getElementById('story-preview');
+                    storyPreview.innerHTML = '';
+                    
+                    // 按照新顺序添加故事项目
+                    newOrder.forEach((item, index) => {
+                        // 更新场景编号
+                        const sceneTitle = item.querySelector('h3');
+                        if (sceneTitle) {
+                            sceneTitle.textContent = `场景 ${index + 1}`;
+                        }
+                        storyPreview.appendChild(item);
+                    });
+                    
+                    console.log('✓ 故事顺序已更新');
+                }
+            }
+            
+            // 初始设置拖拽功能
+            setupDragAndDrop();
+            
+            // 当生成新故事时，重新设置拖拽功能
+            window.setupDragAndDrop = setupDragAndDrop;
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', function() {
+            initDragAndDrop();
+            
+            // 显示登录模态框
+            document.getElementById('login-modal').classList.remove('hidden');
+        });
+        
+        // 回车发送消息
+        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // 回车登录
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                login();
+            }
+        });
+        
+        // 从时间轴生成故事内容
+        async function generateStoryFromTimeline() {
+            const timelineItems = document.querySelectorAll('.timeline-item');
+            if (timelineItems.length === 0) {
+                alert('请先生成故事或添加时间轴项目');
+                return;
+            }
+            
+            // 显示加载状态
+            const loading = document.createElement('div');
+            loading.className = 'loading active';
+            loading.textContent = '正在生成故事内容，请稍候...';
+            document.querySelector('#dynamic-narrative').appendChild(loading);
+            
+            try {
+                // 收集时间轴中的场景描述
+                const sceneDescriptions = [];
+                const storyItems = document.querySelectorAll('.story-item');
+                
+                // 按时间轴顺序获取场景描述
+                timelineItems.forEach((item, index) => {
+                    const sceneIndex = parseInt(item.querySelector('p').textContent.match(/场景 (\d+)/)[1]) - 1;
+                    if (sceneIndex >= 0 && sceneIndex < storyItems.length) {
+                        const caption = storyItems[sceneIndex].querySelector('.story-caption').textContent;
+                        sceneDescriptions.push(caption);
+                    }
+                });
+                
+                if (sceneDescriptions.length === 0) {
+                    alert('无法获取场景描述');
+                    loading.remove();
+                    return;
+                }
+                
+                // 获取故事风格
+                const storyStyle = document.getElementById('story-style').value;
+                
+                // 调用生成连贯故事的API
+                const formData = new FormData();
+                sceneDescriptions.forEach((desc, index) => {
+                    formData.append('scene_descriptions', desc);
+                });
+                formData.append('story_style', storyStyle);
+                
+                const response = await fetch('http://localhost:8000/api/generate-coherent-story', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // 更新故事预览
+                    const storyPreview = document.getElementById('story-preview');
+                    storyPreview.innerHTML = `
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                            <h3 style="color: #667eea; margin-bottom: 15px;">生成的连贯故事</h3>
+                            <div style="white-space: pre-wrap; line-height: 1.6;">${data.story}</div>
+                        </div>
+                    `;
+                    
+                    // 添加到聊天记录
+                    addChatMessage('bot', '已根据时间轴排序生成连贯的故事内容');
+                } else {
+                    alert('生成连贯故事失败: ' + data.detail);
+                }
+                
+            } catch (error) {
+                console.error('生成故事内容出错:', error);
+                alert('生成故事内容失败，请检查后端服务是否运行');
+            } finally {
+                // 移除加载状态
+                loading.remove();
+            }
+        }
+        
+        // 优化动态叙事生成速度
+        async function generateStory() {
+            const loading = document.getElementById('story-loading');
+            const preview = document.getElementById('story-preview');
+            const timeline = document.getElementById('timeline-items');
+            const keywords = document.getElementById('story-keywords').value;
+            const storyStyle = document.getElementById('story-style').value;
+            const storyLength = document.getElementById('story-length').value;
+            
+            if (!keywords) {
+                alert('请输入关键词');
+                return;
+            }
+            
+            loading.classList.add('active');
+            preview.innerHTML = '';
+            timeline.innerHTML = '';
+            
+            try {
+                // 调用后端API
+                const response = await fetch('http://localhost:8000/api/generate-story', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        keywords: keywords,
+                        story_style: storyStyle,
+                        story_length: storyLength
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // 添加故事标题和风格信息
+                    const storyHeader = document.createElement('div');
+                    storyHeader.style = 'background: #667eea; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;';
+                    storyHeader.innerHTML = `
+                        <h3 style="margin: 0;">${storyStyle}风格故事</h3>
+                        <p style="margin: 5px 0 0 0;">关键词: ${keywords}</p>
+                        <p style="margin: 5px 0 0 0;">场景数量: ${data.story_items.length}</p>
+                    `;
+                    preview.appendChild(storyHeader);
+                    
+                    // 添加连贯故事
+                    if (data.coherent_story) {
+                        const coherentStoryDiv = document.createElement('div');
+                        coherentStoryDiv.style = 'background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e9ecef;';
+                        coherentStoryDiv.innerHTML = `
+                            <h4 style="margin-top: 0; color: #495057;">连贯故事</h4>
+                            <div style="line-height: 1.6; color: #343a40;">${data.coherent_story.replace(/\n/g, '<br>')}</div>
+                        `;
+                        preview.appendChild(coherentStoryDiv);
+                    }
+                    
+                    // 生成故事预览
+                    data.story_items.forEach((item, index) => {
+                        const storyDiv = document.createElement('div');
+                        storyDiv.className = 'story-item';
+                        storyDiv.innerHTML = `
+                            <h3>场景 ${index + 1}</h3>
+                            <img src="${item.image}" alt="场景 ${index + 1}">
+                            <div class="story-caption">${item.caption}</div>
+                            ${item.audio ? `<audio controls src="${item.audio}"></audio>` : ''}
+                        `;
+                        preview.appendChild(storyDiv);
+                        
+                        // 生成时间轴项目
+                        const timelineItem = document.createElement('div');
+                        timelineItem.className = 'timeline-item';
+                        timelineItem.draggable = true;
+                        timelineItem.innerHTML = `
+                            <img src="${item.image}" alt="时间轴 ${index + 1}" style="max-width: 100px; height: auto;">
+                            <p>场景 ${index + 1}</p>
+                        `;
+                        timeline.appendChild(timelineItem);
+                    });
+                    
+                    // 为新生成的时间轴项目添加拖拽功能
+                    if (window.setupDragAndDrop) {
+                        window.setupDragAndDrop();
+                    }
+                    
+                    // 添加到聊天记录
+                    addChatMessage('bot', `已为您生成${storyLength === 'short' ? '短篇' : storyLength === 'medium' ? '中篇' : '长篇'}${storyStyle}故事`);
+                } else {
+                    alert('生成故事失败: ' + data.detail);
+                }
+            } catch (error) {
+                console.error('生成故事出错:', error);
+                alert('生成故事失败，请检查后端服务是否运行');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html>

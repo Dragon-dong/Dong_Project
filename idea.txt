@@ -1,0 +1,107 @@
+# 在IntelliJ IDEA中运行项目的步骤
+
+## 1. 确保安装Python插件
+
+IntelliJ IDEA默认主要支持Java，但可以通过插件支持Python：
+
+1. **打开插件管理器**：
+   - 点击 `File` > `Settings` > `Plugins`
+   - 在搜索框中输入 `Python`
+   - 找到 `Python` 插件并安装
+   - 重启IDEA以应用更改
+
+## 2. 导入项目
+
+1. **打开项目**：
+   - 点击 `File` > `Open`
+   - 选择项目目录 `D:/00-毕业设计/gradual project`
+   - 点击 `OK` 打开项目
+
+2. **确认项目类型**：
+   - IDEA会自动检测项目类型，如果提示选择项目类型，选择 `Python`
+
+## 3. 配置Python解释器
+
+1. **打开项目结构**：
+   - 点击 `File` > `Project Structure`
+   - 在左侧选择 `Project`
+   - 在 `Project SDK` 下拉菜单中选择 `Add SDK` > `Python SDK`
+
+2. **选择或创建解释器**：
+   - 选择 `Virtualenv Environment` 或 `Conda Environment`
+   - 可以选择 `New environment` 创建新的虚拟环境，或 `Existing environment` 使用已有的
+   - 点击 `OK` 确认
+
+## 4. 安装项目依赖
+
+1. **使用IDEA的包管理器**：
+   - 打开 `File` > `Settings` > `Project` > `Python Interpreter`
+   - 点击 `+` 按钮
+   - 输入 `requirements.txt` 中的依赖包名，逐个安装
+   - 或者点击 `Install from requirements.txt` 按钮，选择项目中的 `requirements.txt` 文件
+
+2. **使用终端安装**：
+   - 在IDEA的终端中运行：
+     ```bash
+     pip install -r requirements.txt
+     ```
+
+## 5. 配置运行配置
+
+1. **创建运行配置**：
+   - 点击工具栏中的 `Add Configuration...`
+   - 点击 `+` 按钮，选择 `Python`
+   - 在 `Name` 中输入 `main`
+
+2. **设置运行参数**：
+   - **Script path**：选择 `D:/00-毕业设计/gradual project/main.py`
+   - **Working directory**：设置为 `D:/00-毕业设计/gradual project`
+   - **Environment variables**：添加 `PYTHONUNBUFFERED=1`
+   - **Environment file**：点击文件夹图标，选择项目中的 `.env` 文件
+
+3. **应用配置**：
+   - 点击 `Apply` 保存配置
+   - 点击 `OK` 关闭配置窗口
+
+## 6. 配置数据库连接
+
+项目使用MySQL和Redis，需要确保：
+
+1. **MySQL数据库**：
+   - 确保MySQL服务正在运行
+   - 数据库 `cross_modal_system` 已创建
+   - 用户名和密码与 `.env` 文件中的配置一致
+
+2. **Redis**：
+   - 确保Redis服务正在运行（如果没有Redis，可以暂时忽略，系统会自动处理连接失败的情况）
+
+## 7. 运行项目
+
+1. **启动项目**：
+   - 点击工具栏中的运行按钮（绿色三角形）
+   - 或使用快捷键 `Shift+F10`
+
+2. **查看运行状态**：
+   - 在运行窗口中查看项目启动日志
+   - 项目会在 `http://localhost:8000` 启动
+
+## 8. 访问项目
+
+在浏览器中访问 `http://localhost:8000` 即可看到项目的前端界面。
+
+## 注意事项
+
+1. **依赖安装可能需要时间**：特别是 `diffusers` 和 `transformers` 等大型库
+2. **模型下载**：首次运行时，系统可能会下载一些模型文件
+3. **端口占用**：如果8000端口被占用，可以修改 `main.py` 中的端口设置
+4. **环境变量**：确保 `.env` 文件中的配置正确
+
+## 故障排除
+
+如果遇到问题：
+1. 检查Python解释器是否正确配置
+2. 检查依赖是否全部安装
+3. 检查数据库连接是否正常
+4. 查看IDEA的运行日志，了解具体错误信息
+
+按照以上步骤配置后，您应该能够在IntelliJ IDEA中成功运行项目。
