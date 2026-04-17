@@ -12,16 +12,29 @@ from typing import Optional, List, Dict
 class LLMModel:
     """LLM模型封装，用于文本生成和动态叙事生成"""
     
-    def __init__(self):
-        """初始化LLM模型"""
-        # 初始化阿里云百炼API配置
-        self.api_key = os.getenv("DASHSCOPE_API_KEY")
-        if not self.api_key:
-            # 使用提供的API Key
-            self.api_key = "sk-a2f939f05191490184744855395f348c"
-            print("未设置环境变量DASHSCOPE_API_KEY，使用默认API Key")
-        self.api_url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-        print("LLM模型初始化成功，使用阿里云百炼API")
+    def __init__(self, model_settings=None):
+        """初始化LLM模型
+        
+        Args:
+            model_settings: 模型设置，包含modelType、localPaths、apiConfig等
+        """
+        if model_settings and model_settings.modelType == "custom-api" and model_settings.apiConfig:
+            # 使用自定义API配置
+            api_config = model_settings.apiConfig
+            self.api_key = api_config.get("key")
+            self.api_url = api_config.get("baseUrl", "https://api.openai.com/v1/chat/completions")
+            self.model = api_config.get("provider", "openai")
+            print(f"LLM模型初始化成功，使用自定义API: {self.model}")
+        else:
+            # 初始化阿里云百炼API配置
+            self.api_key = os.getenv("DASHSCOPE_API_KEY")
+            if not self.api_key:
+                # 使用提供的API Key
+                self.api_key = "sk-a2f939f05191490184744855395f348c"
+                print("未设置环境变量DASHSCOPE_API_KEY，使用默认API Key")
+            self.api_url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+            self.model = "qwen3-vl-plus"
+            print("LLM模型初始化成功，使用阿里云百炼API")
     
     def generate_text(
         self, 
@@ -303,13 +316,23 @@ class LLMModel:
 llm_model_instance = None
 
 
-def get_llm_model() -> LLMModel:
+def get_llm_model(model_settings=None) -> LLMModel:
     """获取LLM模型实例（单例模式）
+    
+    Args:
+        model_settings: 模型设置，包含modelType、localPaths、apiConfig等
     
     Returns:
         LLMModel实例
     """
     global llm_model_instance
+    if model_settings:
+        # 根据模型设置创建新的实例
+        if model_settings.modelType == "custom-api" and model_settings.apiConfig:
+            # 使用自定义API配置
+            return LLMModel(model_settings=model_settings)
+    
+    # 默认使用全局实例
     if llm_model_instance is None:
         llm_model_instance = LLMModel()
     return llm_model_instance

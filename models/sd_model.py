@@ -256,13 +256,28 @@ class StableDiffusionModel:
 # 全局模型实例（单例模式）
 sd_model_instance = None
 
-def get_sd_model() -> StableDiffusionModel:
+def get_sd_model(model_settings=None) -> StableDiffusionModel:
     """获取Stable Diffusion模型实例（单例模式）
+    
+    Args:
+        model_settings: 模型设置，包含modelType、localPaths、apiConfig等
     
     Returns:
         StableDiffusionModel实例
     """
     global sd_model_instance
+    if model_settings:
+        # 根据模型设置创建新的实例
+        if model_settings.modelType == "local" and model_settings.localPaths:
+            # 使用本地模型路径
+            sd_path = model_settings.localPaths.get("sd", "runwayml/stable-diffusion-v1-5")
+            return StableDiffusionModel(model_id=sd_path)
+        elif model_settings.modelType == "custom-api" and model_settings.apiConfig:
+            # 使用自定义API配置
+            # 这里可以根据apiConfig配置不同的API
+            return StableDiffusionModel()
+    
+    # 默认使用全局实例
     if sd_model_instance is None:
         sd_model_instance = StableDiffusionModel()
     return sd_model_instance

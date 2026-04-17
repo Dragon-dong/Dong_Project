@@ -743,9 +743,66 @@
                 <div class="user-info" id="user-info" style="display: none;">
                     <div class="user-avatar" id="user-avatar">U</div>
                     <span class="user-name" id="user-name">用户名</span>
+                    <button class="btn btn-secondary" style="margin-right: 10px; padding: 6px 12px; font-size: 0.9rem;" onclick="openSettings()">设置</button>
                     <button class="logout-btn" onclick="logout()">退出</button>
                 </div>
             </header>
+            
+            <!-- 设置模态框 -->
+            <div class="login-modal" id="settings-modal" style="display: none;">
+                <div class="login-form" style="max-width: 500px;">
+                    <h2>模型设置</h2>
+                    <div class="input-group">
+                        <label for="model-type">模型类型</label>
+                        <select id="model-type" onchange="toggleModelSettings()">
+                            <option value="default">默认模型</option>
+                            <option value="local">本地模型</option>
+                            <option value="custom-api">自定义API</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 本地模型设置 -->
+                    <div id="local-model-settings" style="display: none;">
+                        <div class="input-group">
+                            <label for="local-sd-path">Stable Diffusion模型路径</label>
+                            <input type="text" id="local-sd-path" placeholder="例如：C:\models\stable-diffusion-v1-5">
+                        </div>
+                        <div class="input-group">
+                            <label for="local-llm-path">LLM模型路径</label>
+                            <input type="text" id="local-llm-path" placeholder="例如：C:\models\llama3-8b">
+                        </div>
+                    </div>
+                    
+                    <!-- 自定义API设置 -->
+                    <div id="api-model-settings" style="display: none;">
+                        <div class="input-group">
+                            <label for="api-provider">API提供商</label>
+                            <select id="api-provider">
+                                <option value="openai">OpenAI</option>
+                                <option value="anthropic">Anthropic</option>
+                                <option value="azure">Azure OpenAI</option>
+                                <option value="baidu">百度文心一言</option>
+                                <option value="aliyun">阿里云百炼</option>
+                                <option value="tencent">腾讯混元</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="api-key">API密钥</label>
+                            <input type="password" id="api-key" placeholder="请输入API密钥">
+                        </div>
+                        <div class="input-group">
+                            <label for="api-base-url">API基础URL (可选)</label>
+                            <input type="text" id="api-base-url" placeholder="例如：https://api.openai.com/v1">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; justify-content: center; gap: 10px;">
+                        <button class="btn" onclick="saveSettings()" style="flex: 1; max-width: 200px;">保存设置</button>
+                        <button class="btn btn-secondary" onclick="closeSettings()" style="flex: 1; max-width: 200px;">取消</button>
+                    </div>
+                    <div class="error-message" id="settings-error"></div>
+                </div>
+            </div>
             
             <div class="language-selector">
                 <button class="lang-btn active" data-lang="zh">中文</button>
@@ -1005,8 +1062,8 @@
             document.querySelector('#dynamic-narrative .btn:nth-child(1)').textContent = langData.generateStory;
             document.querySelector('#dynamic-narrative .btn:nth-child(2)').textContent = langData.clearStory;
             document.getElementById('story-loading').textContent = langData.generating;
-            document.querySelector('#dynamic-narrative .preview-title:nth-child(1)').textContent = langData.storyPreview;
-            document.querySelector('#dynamic-narrative .preview-title:nth-child(2)').textContent = langData.timelineEdit;
+            document.querySelector('#dynamic-narrative .preview-area .preview-title').textContent = langData.storyPreview;
+            document.querySelector('#dynamic-narrative .timeline .preview-title').textContent = langData.timelineEdit;
             
             // 更新风格迁移部分
             document.querySelector('#style-transfer h2').textContent = langData.styleTransferTitle;
@@ -1059,7 +1116,11 @@
         }
         
         // 页面加载完成后初始化
-        window.onload = initPage;
+        window.onload = function() {
+            initPage();
+            loadSettings();
+        };
+        
         // 表单切换功能
         document.querySelectorAll('.tab-btn').forEach(button => {
             button.addEventListener('click', () => {
@@ -1117,7 +1178,7 @@
                 
                 if (data.status === 'success') {
                     // 登录成功
-                    document.getElementById('login-modal').classList.add('hidden');
+                    document.getElementById('login-modal').style.display = 'none';
                     document.getElementById('user-info').style.display = 'flex';
                     document.getElementById('user-name').textContent = username;
                     document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
@@ -1130,20 +1191,16 @@
                 }
             } catch (error) {
                 console.error('登录出错:', error);
-                //  fallback to mock login
-                if (username === 'admin' && password === '123456') {
-                    // 登录成功
-                    document.getElementById('login-modal').classList.add('hidden');
-                    document.getElementById('user-info').style.display = 'flex';
-                    document.getElementById('user-name').textContent = username;
-                    document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
-                    errorElement.textContent = '';
-                    
-                    // 显示欢迎消息
-                    addChatMessage('bot', '欢迎回来，' + username + '！有什么可以帮助您的吗？');
-                } else {
-                    errorElement.textContent = '用户名或密码错误';
-                }
+                // 简化mock登录逻辑，只要输入了用户名和密码就登录成功
+                // 登录成功
+                document.getElementById('login-modal').style.display = 'none';
+                document.getElementById('user-info').style.display = 'flex';
+                document.getElementById('user-name').textContent = username;
+                document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
+                errorElement.textContent = '';
+                
+                // 显示欢迎消息
+                addChatMessage('bot', '欢迎回来，' + username + '！有什么可以帮助您的吗？');
             }
         }
         
@@ -1226,7 +1283,7 @@
         
         // 退出功能
         function logout() {
-            document.getElementById('login-modal').classList.remove('hidden');
+            document.getElementById('login-modal').style.display = 'flex';
             document.getElementById('user-info').style.display = 'none';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
@@ -1270,660 +1327,578 @@
                 } else if (message.includes('风格迁移') || message.includes('风格转换')) {
                     response = '您可以在"风格迁移"标签页中上传图像，输入风格指令，然后点击"风格迁移"按钮来转换图像风格。';
                 } else if (message.includes('帮助') || message.includes('使用')) {
-                    response = '我可以帮助您使用跨模态内容生成系统。您可以：\n1. 文生图：输入描述生成图像\n2. 图生文：上传图像生成描述\n3. 动态叙事：生成包含图像的故事\n4. 风格迁移：转换图像风格\n请问您需要什么帮助？';
+                    response = '您可以使用顶部的设置按钮配置模型参数，包括本地模型路径或自定义API密钥。系统默认使用内置模型。';
+                } else if (message.includes('设置') || message.includes('配置')) {
+                    response = '您可以点击顶部的设置按钮来配置模型参数，包括选择默认模型、本地模型或自定义API。';
                 } else {
-                    response = '感谢您的消息。我是跨模态内容生成系统的智能助手，可以帮助您使用系统的各项功能。请问您需要什么帮助？';
+                    response = '我理解您的需求。您可以在相应的功能标签页中进行操作，或者告诉我更多细节，我会尽力帮助您。';
                 }
-                
-                addChatMessage('bot', response);
-            }, 1000);
+            
+            addChatMessage('bot', response);
+        }, 1000);
+    }
+    
+    // 添加聊天消息
+    function addChatMessage(type, content) {
+        const chatMessages = document.getElementById('chat-messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${type}`;
+        
+        const now = new Date();
+        const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
+                          now.getMinutes().toString().padStart(2, '0');
+        
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                ${content}
+            </div>
+            <div class="message-time">${timeString}</div>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    // 打开设置模态框
+    function openSettings() {
+        document.getElementById('settings-modal').style.display = 'flex';
+    }
+    
+    // 关闭设置模态框
+    function closeSettings() {
+        document.getElementById('settings-modal').style.display = 'none';
+        document.getElementById('settings-error').textContent = '';
+    }
+    
+    // 切换模型设置显示
+    function toggleModelSettings() {
+        const modelType = document.getElementById('model-type').value;
+        const localSettings = document.getElementById('local-model-settings');
+        const apiSettings = document.getElementById('api-model-settings');
+        
+        if (modelType === 'local') {
+            localSettings.style.display = 'block';
+            apiSettings.style.display = 'none';
+        } else if (modelType === 'custom-api') {
+            localSettings.style.display = 'none';
+            apiSettings.style.display = 'block';
+        } else {
+            localSettings.style.display = 'none';
+            apiSettings.style.display = 'none';
         }
+    }
+    
+    // 保存设置
+    function saveSettings() {
+        const modelType = document.getElementById('model-type').value;
+        const errorElement = document.getElementById('settings-error');
         
-        // 添加聊天消息
-        function addChatMessage(type, content) {
-            const chatMessages = document.getElementById('chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message ${type}`;
+        let settings = {
+            modelType: modelType
+        };
+        
+        if (modelType === 'local') {
+            const sdPath = document.getElementById('local-sd-path').value;
+            const llmPath = document.getElementById('local-llm-path').value;
             
-            const now = new Date();
-            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-            
-            messageDiv.innerHTML = `
-                <div class="message-content">
-                    ${content}
-                </div>
-                <div class="message-time">${timeString}</div>
-            `;
-            
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-        
-        // 标签切换功能
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.addEventListener('click', () => {
-                const tabId = button.dataset.tab;
-                
-                // 更新按钮状态
-                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // 更新内容显示
-                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
-                document.getElementById(tabId).classList.add('active');
-            });
-        });
-        
-        // 语言切换功能
-        document.querySelectorAll('.lang-btn').forEach(button => {
-            button.addEventListener('click', () => {
-                document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                const lang = button.dataset.lang;
-                updateLanguage(lang);
-            });
-        });
-        
-        // 风格预设点击功能
-        document.querySelectorAll('.style-preset').forEach(preset => {
-            preset.addEventListener('click', () => {
-                preset.classList.toggle('active');
-            });
-        });
-        
-        // 调用真实API生成图像
-        async function generateImage() {
-            const loading = document.getElementById('image-loading');
-            const preview = document.getElementById('image-preview');
-            const prompt = document.getElementById('text-prompt').value;
-            
-            if (!prompt) {
-                alert('请输入描述文本');
+            if (!sdPath || !llmPath) {
+                errorElement.textContent = '请输入本地模型路径';
                 return;
             }
             
-            loading.classList.add('active');
-            preview.innerHTML = '';
+            settings.localPaths = {
+                sd: sdPath,
+                llm: llmPath
+            };
+        } else if (modelType === 'custom-api') {
+            const apiProvider = document.getElementById('api-provider').value;
+            const apiKey = document.getElementById('api-key').value;
+            const apiBaseUrl = document.getElementById('api-base-url').value;
             
+            if (!apiKey) {
+                errorElement.textContent = '请输入API密钥';
+                return;
+            }
+            
+            settings.apiConfig = {
+                provider: apiProvider,
+                key: apiKey,
+                baseUrl: apiBaseUrl
+            };
+        }
+        
+        // 保存到本地存储
+        localStorage.setItem('modelSettings', JSON.stringify(settings));
+        
+        errorElement.textContent = '设置保存成功';
+        
+        // 3秒后关闭模态框
+        setTimeout(() => {
+            closeSettings();
+        }, 1500);
+    }
+    
+    // 加载设置
+    function loadSettings() {
+        const savedSettings = localStorage.getItem('modelSettings');
+        
+        if (savedSettings) {
             try {
-                // 获取选中的风格
-                const selectedStyles = Array.from(document.querySelectorAll('.style-preset.active'))
-                    .map(preset => preset.textContent)
-                    .join(', ');
+                const settings = JSON.parse(savedSettings);
+                document.getElementById('model-type').value = settings.modelType || 'default';
                 
-                const customStyle = document.getElementById('custom-style').value;
-                
-                // 调用后端API
-                const response = await fetch('http://localhost:8000/api/text-to-image', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        prompt: prompt,
-                        style: selectedStyles || undefined,
-                        custom_style: customStyle || undefined,
-                        resolution: '512x512'
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    const img = document.createElement('img');
-                    img.src = data.image_url;
-                    img.alt = '生成的图像';
-                    img.id = 'image-preview';
-                    preview.appendChild(img);
-                    
-                    // 添加到聊天记录
-                    addChatMessage('bot', `已为您生成图像："${prompt}"`);
-                } else {
-                    alert('生成图像失败: ' + data.detail);
+                if (settings.modelType === 'local' && settings.localPaths) {
+                    document.getElementById('local-sd-path').value = settings.localPaths.sd || '';
+                    document.getElementById('local-llm-path').value = settings.localPaths.llm || '';
+                } else if (settings.modelType === 'custom-api' && settings.apiConfig) {
+                    document.getElementById('api-provider').value = settings.apiConfig.provider || 'openai';
+                    document.getElementById('api-key').value = settings.apiConfig.key || '';
+                    document.getElementById('api-base-url').value = settings.apiConfig.baseUrl || '';
                 }
+                
+                // 触发切换显示
+                toggleModelSettings();
             } catch (error) {
-                console.error('生成图像出错:', error);
-                alert('生成图像失败，请检查后端服务是否运行');
-            } finally {
-                loading.classList.remove('active');
+                console.error('加载设置出错:', error);
             }
         }
+    }
+    
+    // 生成图像
+    async function generateImage() {
+        const prompt = document.getElementById('text-prompt').value;
+        const style = document.getElementById('custom-style').value || '写实风格';
+        const loadingElement = document.getElementById('image-loading');
         
-        // 清空图像
-        function clearImage() {
-            document.getElementById('text-prompt').value = '';
-            document.getElementById('custom-style').value = '';
-            document.getElementById('image-preview').innerHTML = '';
-            document.querySelectorAll('.style-preset').forEach(preset => preset.classList.remove('active'));
+        if (!prompt) {
+            alert('请输入描述文本');
+            return;
         }
         
-        // 预览上传的图像
-        function previewUploadedImage(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('upload-placeholder').style.display = 'none';
-                    const img = document.getElementById('upload-preview');
-                    img.src = e.target.result;
-                    img.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
+        loadingElement.classList.add('active');
+        
+        try {
+            // 获取模型设置
+            const savedSettings = localStorage.getItem('modelSettings');
+            let modelSettings = null;
+            
+            if (savedSettings) {
+                modelSettings = JSON.parse(savedSettings);
             }
+            
+            const response = await fetch('http://localhost:8000/api/text-to-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    style: style,
+                    resolution: '512x512',
+                    modelSettings: modelSettings // 传递模型设置
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('生成图像失败');
+            }
+            
+            const data = await response.json();
+            const imagePreview = document.getElementById('image-preview');
+            
+            if (data.image) {
+                imagePreview.innerHTML = `<img src="data:image/png;base64,${data.image}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
+            }
+        } catch (error) {
+            console.error('生成图像出错:', error);
+            document.getElementById('image-preview').innerHTML = '<p style="color: red;">生成图像失败，请重试</p>';
+        } finally {
+            loadingElement.classList.remove('active');
+        }
+    }
+    
+    // 清空图像
+    function clearImage() {
+        document.getElementById('text-prompt').value = '';
+        document.getElementById('custom-style').value = '';
+        document.getElementById('image-preview').innerHTML = '';
+    }
+    
+    // 预览上传的图像
+    function previewUploadedImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('upload-preview');
+                const placeholder = document.getElementById('upload-placeholder');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // 生成文本描述
+    async function generateText() {
+        const fileInput = document.getElementById('image-file');
+        const file = fileInput.files[0];
+        const loadingElement = document.getElementById('text-loading');
+        
+        if (!file) {
+            alert('请上传图像');
+            return;
         }
         
-        // 调用真实API生成文本描述
-        async function generateText() {
-            const loading = document.getElementById('text-loading');
-            const preview = document.getElementById('text-preview');
-            const fileInput = document.getElementById('image-file');
+        loadingElement.classList.add('active');
+        
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
             
-            if (!fileInput.files[0]) {
-                alert('请先上传图像');
-                return;
+            // 获取模型设置
+            const savedSettings = localStorage.getItem('modelSettings');
+            let modelSettings = null;
+            
+            if (savedSettings) {
+                modelSettings = JSON.parse(savedSettings);
+                formData.append('modelSettings', JSON.stringify(modelSettings));
             }
             
-            loading.classList.add('active');
-            preview.innerHTML = '';
+            const response = await fetch('http://localhost:8000/api/image-to-text', {
+                method: 'POST',
+                body: formData
+            });
             
-            try {
-                // 创建FormData对象
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                
-                // 调用后端API
-                const response = await fetch('http://localhost:8000/api/image-to-text', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    preview.textContent = data.description;
-                    
-                    // 添加到聊天记录
-                    addChatMessage('bot', '已为您生成图像描述');
-                } else {
-                    alert('生成描述失败: ' + data.detail);
-                }
-            } catch (error) {
-                console.error('生成描述出错:', error);
-                alert('生成描述失败，请检查后端服务是否运行');
-            } finally {
-                loading.classList.remove('active');
+            if (!response.ok) {
+                throw new Error('生成描述失败');
             }
+            
+            const data = await response.json();
+            const textPreview = document.getElementById('text-preview');
+            
+            if (data.description) {
+                textPreview.textContent = data.description;
+            }
+        } catch (error) {
+            console.error('生成描述出错:', error);
+            document.getElementById('text-preview').innerHTML = '<p style="color: red;">生成描述失败，请重试</p>';
+        } finally {
+            loadingElement.classList.remove('active');
+        }
+    }
+    
+    // 清空文本
+    function clearText() {
+        document.getElementById('image-file').value = '';
+        document.getElementById('upload-preview').style.display = 'none';
+        document.getElementById('upload-placeholder').style.display = 'block';
+        document.getElementById('text-preview').innerHTML = '';
+    }
+    
+    // 生成故事
+    async function generateStory() {
+        const keywords = document.getElementById('story-keywords').value;
+        const style = document.getElementById('story-style').value;
+        const length = document.getElementById('story-length').value;
+        const loadingElement = document.getElementById('story-loading');
+        
+        if (!keywords) {
+            alert('请输入关键词');
+            return;
         }
         
-        // 清空图生文内容
-        function clearText() {
-            document.getElementById('image-file').value = '';
-            document.getElementById('upload-placeholder').style.display = 'block';
-            document.getElementById('upload-preview').style.display = 'none';
-            document.getElementById('text-preview').innerHTML = '';
-        }
+        loadingElement.classList.add('active');
         
-        // 调用真实API生成故事
-        async function generateStory() {
-            const loading = document.getElementById('story-loading');
-            const preview = document.getElementById('story-preview');
-            const timeline = document.getElementById('timeline-items');
-            const keywords = document.getElementById('story-keywords').value;
-            const storyStyle = document.getElementById('story-style').value;
-            const storyLength = document.getElementById('story-length').value;
+        try {
+            // 获取模型设置
+            const savedSettings = localStorage.getItem('modelSettings');
+            let modelSettings = null;
             
-            if (!keywords) {
-                alert('请输入关键词');
-                return;
+            if (savedSettings) {
+                modelSettings = JSON.parse(savedSettings);
             }
             
-            loading.classList.add('active');
-            preview.innerHTML = '';
-            timeline.innerHTML = '';
+            const response = await fetch('http://localhost:8000/api/generate-story', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    keywords: keywords,
+                    story_style: style,
+                    story_length: length,
+                    modelSettings: modelSettings // 传递模型设置
+                })
+            });
             
-            try {
-                // 调用后端API
-                const response = await fetch('http://localhost:8000/api/generate-story', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        keywords: keywords,
-                        story_style: storyStyle,
-                        story_length: storyLength
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                // 生成故事预览
-                data.story_items.forEach((item, index) => {
-                    const storyDiv = document.createElement('div');
-                    storyDiv.className = 'story-item';
-                    storyDiv.innerHTML = `
+            if (!response.ok) {
+                throw new Error('生成故事失败');
+            }
+            
+            const data = await response.json();
+            const storyPreview = document.getElementById('story-preview');
+            const timelineItems = document.getElementById('timeline-items');
+            
+            if (data.story) {
+                // 显示故事内容
+                storyPreview.innerHTML = '';
+                data.story.forEach((item, index) => {
+                    const storyItem = document.createElement('div');
+                    storyItem.className = 'story-item';
+                    storyItem.innerHTML = `
                         <h3>场景 ${index + 1}</h3>
-                        <img src="${item.image}" alt="场景 ${index + 1}">
-                        <div class="story-caption">${item.caption}</div>
-                        ${item.audio ? `<audio controls src="${item.audio}"></audio>` : ''}
+                        <p class="story-caption">${item.caption}</p>
+                        ${item.image ? `<img src="data:image/png;base64,${item.image}" alt="场景 ${index + 1}">` : ''}
                     `;
-                    preview.appendChild(storyDiv);
-                    
-                    // 生成时间轴项目
+                    storyPreview.appendChild(storyItem);
+                });
+                
+                // 生成时间轴
+                timelineItems.innerHTML = '';
+                data.story.forEach((item, index) => {
                     const timelineItem = document.createElement('div');
                     timelineItem.className = 'timeline-item';
                     timelineItem.draggable = true;
                     timelineItem.innerHTML = `
-                        <img src="${item.image}" alt="时间轴 ${index + 1}" style="max-width: 100px; height: auto;">
-                        <p>场景 ${index + 1}</p>
+                        <h4>场景 ${index + 1}</h4>
+                        <p>${item.caption.substring(0, 30)}${item.caption.length > 30 ? '...' : ''}</p>
                     `;
-                    timeline.appendChild(timelineItem);
+                    timelineItems.appendChild(timelineItem);
                 });
-                
-                // 为新生成的时间轴项目添加拖拽功能
-                if (window.setupDragAndDrop) {
-                    window.setupDragAndDrop();
-                }
-                
-                // 添加到聊天记录
-                addChatMessage('bot', `已为您生成${storyLength === 'short' ? '短篇' : storyLength === 'medium' ? '中篇' : '长篇'}${storyStyle}故事`);
+            }
+        } catch (error) {
+            console.error('生成故事出错:', error);
+            document.getElementById('story-preview').innerHTML = '<p style="color: red;">生成故事失败，请重试</p>';
+        } finally {
+            loadingElement.classList.remove('active');
+        }
+    }
+    
+    // 清空故事
+    function clearStory() {
+        document.getElementById('story-keywords').value = '';
+        document.getElementById('story-preview').innerHTML = '';
+        document.getElementById('timeline-items').innerHTML = '';
+    }
+    
+    // 预览风格图像
+    function previewStyleImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('style-upload-preview');
+                const placeholder = document.getElementById('style-upload-placeholder');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // 风格迁移
+    async function transferStyle() {
+        const fileInput = document.getElementById('style-image-file');
+        const file = fileInput.files[0];
+        const instruction = document.getElementById('style-instruction').value;
+        const loadingElement = document.getElementById('style-loading');
+        
+        if (!file || !instruction) {
+            alert('请上传图像并输入风格指令');
+            return;
+        }
+        
+        loadingElement.classList.add('active');
+        
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('instruction', instruction);
+            
+            // 获取模型设置
+            const savedSettings = localStorage.getItem('modelSettings');
+            let modelSettings = null;
+            
+            if (savedSettings) {
+                modelSettings = JSON.parse(savedSettings);
+                formData.append('modelSettings', JSON.stringify(modelSettings));
+            }
+            
+            const response = await fetch('http://localhost:8000/api/style-transfer', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('风格迁移失败');
+            }
+            
+            const data = await response.json();
+            const stylePreview = document.getElementById('style-preview');
+            
+            if (data.image) {
+                stylePreview.innerHTML = `<img src="data:image/png;base64,${data.image}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
+            }
+        } catch (error) {
+            console.error('风格迁移出错:', error);
+            document.getElementById('style-preview').innerHTML = '<p style="color: red;">风格迁移失败，请重试</p>';
+        } finally {
+            loadingElement.classList.remove('active');
+        }
+    }
+    
+    // 清空风格迁移
+    function clearStyle() {
+        document.getElementById('style-image-file').value = '';
+        document.getElementById('style-instruction').value = '';
+        document.getElementById('style-upload-preview').style.display = 'none';
+        document.getElementById('style-upload-placeholder').style.display = 'block';
+        document.getElementById('style-preview').innerHTML = '';
+    }
+    
+    // 从时间轴生成故事
+    async function generateStoryFromTimeline() {
+        const timelineItems = document.querySelectorAll('.timeline-item');
+        if (timelineItems.length === 0) {
+            alert('时间轴为空，请先生成故事');
+            return;
+        }
+        
+        const scenes = [];
+        timelineItems.forEach((item, index) => {
+            scenes.push({
+                id: index + 1,
+                caption: item.querySelector('p').textContent
+            });
+        });
+        
+        try {
+            // 获取模型设置
+            const savedSettings = localStorage.getItem('modelSettings');
+            let modelSettings = null;
+            
+            if (savedSettings) {
+                modelSettings = JSON.parse(savedSettings);
+            }
+            
+            const response = await fetch('http://localhost:8000/api/generate-story-from-timeline', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    scenes: scenes,
+                    modelSettings: modelSettings // 传递模型设置
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('生成故事失败');
+            }
+            
+            const data = await response.json();
+            const storyPreview = document.getElementById('story-preview');
+            
+            if (data.story) {
+                storyPreview.innerHTML = '';
+                data.story.forEach((item, index) => {
+                    const storyItem = document.createElement('div');
+                    storyItem.className = 'story-item';
+                    storyItem.innerHTML = `
+                        <h3>场景 ${index + 1}</h3>
+                        <p class="story-caption">${item.caption}</p>
+                        ${item.image ? `<img src="data:image/png;base64,${item.image}" alt="场景 ${index + 1}">` : ''}
+                    `;
+                    storyPreview.appendChild(storyItem);
+                });
+            }
+        } catch (error) {
+            console.error('生成故事出错:', error);
+            document.getElementById('story-preview').innerHTML = '<p style="color: red;">生成故事失败，请重试</p>';
+        }
+    }
+    
+    // 语言选择
+    document.querySelectorAll('.lang-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const lang = button.dataset.lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            updateLanguage(lang);
+        });
+    });
+    
+    // 标签页切换
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.dataset.tab;
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+    
+    // 风格预设选择
+    document.querySelectorAll('.style-preset').forEach(preset => {
+        preset.addEventListener('click', () => {
+            document.querySelectorAll('.style-preset').forEach(p => p.classList.remove('active'));
+            preset.classList.add('active');
+            document.getElementById('custom-style').value = preset.textContent;
+        });
+    });
+    
+    // 初始化拖拽功能
+    function initDragAndDrop() {
+        const timelineItems = document.getElementById('timeline-items');
+        let draggedItem = null;
+        
+        timelineItems.addEventListener('dragstart', function(e) {
+            if (e.target.classList.contains('timeline-item')) {
+                draggedItem = e.target;
+                e.target.classList.add('dragging');
+            }
+        });
+        
+        timelineItems.addEventListener('dragend', function(e) {
+            if (e.target.classList.contains('timeline-item')) {
+                e.target.classList.remove('dragging');
+                draggedItem = null;
+            }
+        });
+        
+        timelineItems.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(timelineItems, e.clientY);
+            const draggable = document.querySelector('.dragging');
+            if (afterElement == null) {
+                timelineItems.appendChild(draggable);
             } else {
-                alert('生成故事失败: ' + data.detail);
-            }
-            } catch (error) {
-                console.error('生成故事出错:', error);
-                alert('生成故事失败，请检查后端服务是否运行');
-            } finally {
-                loading.classList.remove('active');
-            }
-        }
-        
-        // 清空故事
-        function clearStory() {
-            document.getElementById('story-keywords').value = '';
-            document.getElementById('story-preview').innerHTML = '';
-            document.getElementById('timeline-items').innerHTML = '';
-        }
-        
-        // 预览风格图像
-        function previewStyleImage(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('style-upload-placeholder').style.display = 'none';
-                    const img = document.getElementById('style-upload-preview');
-                    img.src = e.target.result;
-                    img.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-        
-        // 调用真实API进行风格迁移
-        async function transferStyle() {
-            const loading = document.getElementById('style-loading');
-            const preview = document.getElementById('style-preview');
-            const fileInput = document.getElementById('style-image-file');
-            const instruction = document.getElementById('style-instruction').value;
-            
-            if (!fileInput.files[0] || !instruction) {
-                alert('请上传图像并输入风格指令');
-                return;
-            }
-            
-            loading.classList.add('active');
-            preview.innerHTML = '';
-            
-            try {
-                // 创建FormData对象
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                formData.append('style_instruction', instruction);
-                
-                // 调用后端API
-                const response = await fetch('http://localhost:8000/api/style-transfer', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    const img = document.createElement('img');
-                    img.src = data.image_url;
-                    img.alt = '风格迁移后的图像';
-                    preview.appendChild(img);
-                    
-                    // 添加到聊天记录
-                    addChatMessage('bot', `已为您完成风格迁移：${instruction}`);
-                } else {
-                    alert('风格迁移失败: ' + data.detail);
-                }
-            } catch (error) {
-                console.error('风格迁移出错:', error);
-                alert('风格迁移失败，请检查后端服务是否运行');
-            } finally {
-                loading.classList.remove('active');
-            }
-        }
-        
-        // 清空风格迁移内容
-        function clearStyle() {
-            document.getElementById('style-image-file').value = '';
-            document.getElementById('style-instruction').value = '';
-            document.getElementById('style-upload-placeholder').style.display = 'block';
-            document.getElementById('style-upload-preview').style.display = 'none';
-            document.getElementById('style-preview').innerHTML = '';
-        }
-        
-        // 初始化时间轴拖拽排序功能
-        function initDragAndDrop() {
-            const timelineItems = document.getElementById('timeline-items');
-            
-            // 为每个时间轴项目添加拖拽事件监听器
-            function setupDragAndDrop() {
-                const items = document.querySelectorAll('.timeline-item');
-                
-                items.forEach(item => {
-                    // 添加拖拽开始事件
-                    item.addEventListener('dragstart', function(e) {
-                        this.classList.add('dragging');
-                        e.dataTransfer.effectAllowed = 'move';
-                    });
-                    
-                    // 添加拖拽结束事件
-                    item.addEventListener('dragend', function() {
-                        this.classList.remove('dragging');
-                        // 移除所有drag-over类
-                        document.querySelectorAll('.timeline-item').forEach(el => {
-                            el.classList.remove('drag-over');
-                        });
-                    });
-                    
-                    // 添加拖拽经过事件
-                    item.addEventListener('dragover', function(e) {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                        
-                        // 移除其他项目的drag-over类
-                        document.querySelectorAll('.timeline-item').forEach(el => {
-                            el.classList.remove('drag-over');
-                        });
-                        
-                        // 添加drag-over类到当前项目
-                        this.classList.add('drag-over');
-                    });
-                    
-                    // 添加拖拽离开事件
-                    item.addEventListener('dragleave', function() {
-                        this.classList.remove('drag-over');
-                    });
-                    
-                    // 添加放置事件
-                    item.addEventListener('drop', function(e) {
-                        e.preventDefault();
-                        
-                        const draggingItem = document.querySelector('.timeline-item.dragging');
-                        if (draggingItem !== this) {
-                            // 获取所有时间轴项目
-                            const allItems = Array.from(timelineItems.children);
-                            const draggingIndex = allItems.indexOf(draggingItem);
-                            const dropIndex = allItems.indexOf(this);
-                            
-                            // 根据拖拽方向插入项目
-                            if (draggingIndex < dropIndex) {
-                                timelineItems.insertBefore(draggingItem, this.nextSibling);
-                            } else {
-                                timelineItems.insertBefore(draggingItem, this);
-                            }
-                            
-                            // 更新故事预览顺序
-                            updateStoryPreviewOrder();
-                        }
-                        
-                        // 移除drag-over类
-                        this.classList.remove('drag-over');
-                    });
-                });
-            }
-            
-            // 更新故事预览顺序
-            function updateStoryPreviewOrder() {
-                const timelineItems = document.querySelectorAll('.timeline-item');
-                const storyItems = document.querySelectorAll('.story-item');
-                
-                if (timelineItems.length === storyItems.length) {
-                    // 创建新的故事项目顺序
-                    const newOrder = [];
-                    timelineItems.forEach((item, index) => {
-                        const sceneIndex = parseInt(item.querySelector('p').textContent.match(/场景 (\d+)/)[1]) - 1;
-                        if (sceneIndex >= 0 && sceneIndex < storyItems.length) {
-                            newOrder.push(storyItems[sceneIndex]);
-                        }
-                    });
-                    
-                    // 清空当前故事预览
-                    const storyPreview = document.getElementById('story-preview');
-                    storyPreview.innerHTML = '';
-                    
-                    // 按照新顺序添加故事项目
-                    newOrder.forEach((item, index) => {
-                        // 更新场景编号
-                        const sceneTitle = item.querySelector('h3');
-                        if (sceneTitle) {
-                            sceneTitle.textContent = `场景 ${index + 1}`;
-                        }
-                        storyPreview.appendChild(item);
-                    });
-                    
-                    console.log('✓ 故事顺序已更新');
-                }
-            }
-            
-            // 初始设置拖拽功能
-            setupDragAndDrop();
-            
-            // 当生成新故事时，重新设置拖拽功能
-            window.setupDragAndDrop = setupDragAndDrop;
-        }
-        
-        // 页面加载完成后初始化
-        window.addEventListener('load', function() {
-            initDragAndDrop();
-            
-            // 显示登录模态框
-            document.getElementById('login-modal').classList.remove('hidden');
-        });
-        
-        // 回车发送消息
-        document.getElementById('chat-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+                timelineItems.insertBefore(draggable, afterElement);
             }
         });
         
-        // 回车登录
-        document.getElementById('password').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                login();
-            }
-        });
-        
-        // 从时间轴生成故事内容
-        async function generateStoryFromTimeline() {
-            const timelineItems = document.querySelectorAll('.timeline-item');
-            if (timelineItems.length === 0) {
-                alert('请先生成故事或添加时间轴项目');
-                return;
-            }
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.timeline-item:not(.dragging)')];
             
-            // 显示加载状态
-            const loading = document.createElement('div');
-            loading.className = 'loading active';
-            loading.textContent = '正在生成故事内容，请稍候...';
-            document.querySelector('#dynamic-narrative').appendChild(loading);
-            
-            try {
-                // 收集时间轴中的场景描述
-                const sceneDescriptions = [];
-                const storyItems = document.querySelectorAll('.story-item');
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
                 
-                // 按时间轴顺序获取场景描述
-                timelineItems.forEach((item, index) => {
-                    const sceneIndex = parseInt(item.querySelector('p').textContent.match(/场景 (\d+)/)[1]) - 1;
-                    if (sceneIndex >= 0 && sceneIndex < storyItems.length) {
-                        const caption = storyItems[sceneIndex].querySelector('.story-caption').textContent;
-                        sceneDescriptions.push(caption);
-                    }
-                });
-                
-                if (sceneDescriptions.length === 0) {
-                    alert('无法获取场景描述');
-                    loading.remove();
-                    return;
-                }
-                
-                // 获取故事风格
-                const storyStyle = document.getElementById('story-style').value;
-                
-                // 调用生成连贯故事的API
-                const formData = new FormData();
-                sceneDescriptions.forEach((desc, index) => {
-                    formData.append('scene_descriptions', desc);
-                });
-                formData.append('story_style', storyStyle);
-                
-                const response = await fetch('http://localhost:8000/api/generate-coherent-story', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                if (data.status === 'success') {
-                    // 更新故事预览
-                    const storyPreview = document.getElementById('story-preview');
-                    storyPreview.innerHTML = `
-                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-                            <h3 style="color: #667eea; margin-bottom: 15px;">生成的连贯故事</h3>
-                            <div style="white-space: pre-wrap; line-height: 1.6;">${data.story}</div>
-                        </div>
-                    `;
-                    
-                    // 添加到聊天记录
-                    addChatMessage('bot', '已根据时间轴排序生成连贯的故事内容');
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
                 } else {
-                    alert('生成连贯故事失败: ' + data.detail);
+                    return closest;
                 }
-                
-            } catch (error) {
-                console.error('生成故事内容出错:', error);
-                alert('生成故事内容失败，请检查后端服务是否运行');
-            } finally {
-                // 移除加载状态
-                loading.remove();
-            }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
-        
-        // 优化动态叙事生成速度
-        async function generateStory() {
-            const loading = document.getElementById('story-loading');
-            const preview = document.getElementById('story-preview');
-            const timeline = document.getElementById('timeline-items');
-            const keywords = document.getElementById('story-keywords').value;
-            const storyStyle = document.getElementById('story-style').value;
-            const storyLength = document.getElementById('story-length').value;
-            
-            if (!keywords) {
-                alert('请输入关键词');
-                return;
-            }
-            
-            loading.classList.add('active');
-            preview.innerHTML = '';
-            timeline.innerHTML = '';
-            
-            try {
-                // 调用后端API
-                const response = await fetch('http://localhost:8000/api/generate-story', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        keywords: keywords,
-                        story_style: storyStyle,
-                        story_length: storyLength
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    // 添加故事标题和风格信息
-                    const storyHeader = document.createElement('div');
-                    storyHeader.style = 'background: #667eea; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;';
-                    storyHeader.innerHTML = `
-                        <h3 style="margin: 0;">${storyStyle}风格故事</h3>
-                        <p style="margin: 5px 0 0 0;">关键词: ${keywords}</p>
-                        <p style="margin: 5px 0 0 0;">场景数量: ${data.story_items.length}</p>
-                    `;
-                    preview.appendChild(storyHeader);
-                    
-                    // 添加连贯故事
-                    if (data.coherent_story) {
-                        const coherentStoryDiv = document.createElement('div');
-                        coherentStoryDiv.style = 'background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e9ecef;';
-                        coherentStoryDiv.innerHTML = `
-                            <h4 style="margin-top: 0; color: #495057;">连贯故事</h4>
-                            <div style="line-height: 1.6; color: #343a40;">${data.coherent_story.replace(/\n/g, '<br>')}</div>
-                        `;
-                        preview.appendChild(coherentStoryDiv);
-                    }
-                    
-                    // 生成故事预览
-                    data.story_items.forEach((item, index) => {
-                        const storyDiv = document.createElement('div');
-                        storyDiv.className = 'story-item';
-                        storyDiv.innerHTML = `
-                            <h3>场景 ${index + 1}</h3>
-                            <img src="${item.image}" alt="场景 ${index + 1}">
-                            <div class="story-caption">${item.caption}</div>
-                            ${item.audio ? `<audio controls src="${item.audio}"></audio>` : ''}
-                        `;
-                        preview.appendChild(storyDiv);
-                        
-                        // 生成时间轴项目
-                        const timelineItem = document.createElement('div');
-                        timelineItem.className = 'timeline-item';
-                        timelineItem.draggable = true;
-                        timelineItem.innerHTML = `
-                            <img src="${item.image}" alt="时间轴 ${index + 1}" style="max-width: 100px; height: auto;">
-                            <p>场景 ${index + 1}</p>
-                        `;
-                        timeline.appendChild(timelineItem);
-                    });
-                    
-                    // 为新生成的时间轴项目添加拖拽功能
-                    if (window.setupDragAndDrop) {
-                        window.setupDragAndDrop();
-                    }
-                    
-                    // 添加到聊天记录
-                    addChatMessage('bot', `已为您生成${storyLength === 'short' ? '短篇' : storyLength === 'medium' ? '中篇' : '长篇'}${storyStyle}故事`);
-                } else {
-                    alert('生成故事失败: ' + data.detail);
-                }
-            } catch (error) {
-                console.error('生成故事出错:', error);
-                alert('生成故事失败，请检查后端服务是否运行');
-            } finally {
-                loading.classList.remove('active');
-            }
-        }
+    }
+    
+    // 初始化拖拽功能
+    initDragAndDrop();
     </script>
 </body>
 </html>

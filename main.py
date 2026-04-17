@@ -41,7 +41,7 @@ app.add_middleware(
 )
 
 # 配置静态文件服务
-app.mount("/static", StaticFiles(directory="."), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 根路径路由，返回index.html
 @app.get("/")
@@ -50,12 +50,19 @@ async def root():
     return FileResponse("index.html")
 
 # 数据模型
+class ModelSettings(BaseModel):
+    """模型设置"""
+    modelType: Optional[str] = "default"
+    localPaths: Optional[dict] = None
+    apiConfig: Optional[dict] = None
+
 class TextToImageRequest(BaseModel):
     """文生图请求模型"""
     prompt: str  # 描述文本
     style: Optional[str] = None  # 风格选择
     custom_style: Optional[str] = None  # 自定义风格指令
     resolution: Optional[str] = "512x512"  # 分辨率
+    modelSettings: Optional[ModelSettings] = None  # 模型设置
 
 class ImageToTextRequest(BaseModel):
     """图生文请求模型"""
@@ -67,6 +74,7 @@ class StoryGenerateRequest(BaseModel):
     keywords: str  # 关键词，用逗号分隔
     story_style: Optional[str] = "fantasy"  # 故事风格
     story_length: Optional[str] = "medium"  # 故事长度
+    modelSettings: Optional[ModelSettings] = None  # 模型设置
 
 class StyleTransferRequest(BaseModel):
     """风格迁移请求模型"""
@@ -104,7 +112,8 @@ async def text_to_image(request: TextToImageRequest):
             return cached_result
         
         # 获取Stable Diffusion模型实例
-        sd_model = get_sd_model()
+        sd_model = get_sd_model(request.modelSettings)
+
         
         # 构建基础提示词
         base_prompt = request.prompt
@@ -258,10 +267,10 @@ async def generate_story(request: StoryGenerateRequest):
             return cached_result
         
         # 获取LLM模型实例
-        llm_model = get_llm_model()
+        llm_model = get_llm_model(request.modelSettings)
         
         # 获取Stable Diffusion模型实例
-        sd_model = get_sd_model()
+        sd_model = get_sd_model(request.modelSettings)
         
         # 生成故事场景
         print(f"开始生成动态叙事，关键词: {request.keywords}, 风格: {request.story_style}")
