@@ -71,7 +71,8 @@ class ImageToTextRequest(BaseModel):
 
 class StoryGenerateRequest(BaseModel):
     """动态叙事生成请求模型"""
-    keywords: str  # 关键词，用逗号分隔
+    keywords: Optional[str] = None  # 关键词，用逗号分隔（旧格式）
+    scene_keywords: Optional[List[str]] = None  # 场景关键词列表（新格式）
     story_style: Optional[str] = "fantasy"  # 故事风格
     story_length: Optional[str] = "medium"  # 故事长度
     modelSettings: Optional[ModelSettings] = None  # 模型设置
@@ -250,8 +251,17 @@ async def generate_story(request: StoryGenerateRequest):
     """动态叙事生成接口"""
     start_time = time.time()
     try:
-        # 构建缓存键
-        cache_key = f"generate_story:{request.keywords}:{request.story_style}:{request.story_length}"
+        # 确定使用哪种关键词格式
+        if request.scene_keywords:
+            # 新格式：场景关键词列表
+            keywords = "|".join(request.scene_keywords)
+            # 构建缓存键
+            cache_key = f"generate_story:scenes:{keywords}:{request.story_style}:{request.story_length}"
+        else:
+            # 旧格式：单个关键词字符串
+            keywords = request.keywords
+            # 构建缓存键
+            cache_key = f"generate_story:{keywords}:{request.story_style}:{request.story_length}"
         
         # 尝试从缓存获取
         cached_result = db_ops.get_cache(cache_key)
@@ -273,12 +283,22 @@ async def generate_story(request: StoryGenerateRequest):
         sd_model = get_sd_model(request.modelSettings)
         
         # 生成故事场景
-        print(f"开始生成动态叙事，关键词: {request.keywords}, 风格: {request.story_style}")
-        scenes = llm_model.generate_story(
-            keywords=request.keywords,
-            story_style=request.story_style,
-            story_length=request.story_length
-        )
+        if request.scene_keywords:
+            # 新格式：使用场景关键词列表
+            print(f"开始生成动态叙事，场景关键词数量: {len(request.scene_keywords)}, 风格: {request.story_style}")
+            scenes = llm_model.generate_story_from_scenes(
+                scene_keywords=request.scene_keywords,
+                story_style=request.story_style,
+                story_length=request.story_length
+            )
+        else:
+            # 旧格式：使用单个关键词字符串
+            print(f"开始生成动态叙事，关键词: {request.keywords}, 风格: {request.story_style}")
+            scenes = llm_model.generate_story(
+                keywords=request.keywords,
+                story_style=request.story_style,
+                story_length=request.story_length
+            )
         
         # 为每个场景生成图像
         story_items = []
@@ -338,9 +358,11 @@ async def generate_story(request: StoryGenerateRequest):
         # 构建响应结果
         result = {
             "status": "success",
-            "story_items": story_items,
+            "story": story_items,  # 前端期望的字段名
+            "story_items": story_items,  # 保持向后兼容
             "coherent_story": coherent_story,
             "keywords": request.keywords,
+            "scene_keywords": request.scene_keywords,
             "story_style": request.story_style,
             "story_length": request.story_length
         }
@@ -581,13 +603,23 @@ async def clear_cache(pattern: Optional[str] = Form(None)):
 @app.post("/api/generate-coherent-story")
 async def generate_coherent_story(
     scene_descriptions: List[str] = Form(...),
-    story_style: str = Form("fantasy")
+    story_style: str = Form("fantasy"),
+    modelSettings: Optional[str] = Form(None)
 ):
     """生成连贯的故事内容"""
     start_time = time.time()
     try:
+        # 解析模型设置
+        model_settings = None
+        if modelSettings:
+            try:
+                import json
+                model_settings = json.loads(modelSettings)
+            except json.JSONDecodeError:
+                pass
+        
         # 获取LLM模型实例
-        llm_model = get_llm_model()
+        llm_model = get_llm_model(model_settings)
         
         # 生成连贯的故事
         coherent_story = llm_model.generate_coherent_story(

@@ -886,8 +886,12 @@
                         <div class="function-section">
                             <h2>动态叙事生成</h2>
                             <div class="input-group">
-                                <label for="story-keywords">关键词</label>
-                                <input type="text" id="story-keywords" placeholder="请输入关键词，用逗号分隔，例如：冒险, 森林, 神秘生物">
+                                <label for="story-length">故事长度</label>
+                                <select id="story-length" onchange="updateSceneInputs()">
+                                    <option value="short">短篇（3个场景）</option>
+                                    <option value="medium">中篇（5个场景）</option>
+                                    <option value="long">长篇（8个场景）</option>
+                                </select>
                             </div>
                             <div class="input-group">
                                 <label for="story-style">故事风格</label>
@@ -899,13 +903,8 @@
                                     <option value="adventure">冒险</option>
                                 </select>
                             </div>
-                            <div class="input-group">
-                                <label for="story-length">故事长度</label>
-                                <select id="story-length">
-                                    <option value="short">短篇（3-5个场景）</option>
-                                    <option value="medium">中篇（5-8个场景）</option>
-                                    <option value="long">长篇（8-12个场景）</option>
-                                </select>
+                            <div id="scene-inputs">
+                                <!-- 场景关键词输入将通过JavaScript动态生成 -->
                             </div>
                             <div class="input-group">
                                 <button class="btn" onclick="generateStory()">生成故事</button>
@@ -1034,8 +1033,6 @@
             
             // 更新动态叙事部分
             document.querySelector('#dynamic-narrative h2').textContent = langData.dynamicNarrativeTitle;
-            document.querySelector('#dynamic-narrative label[for="story-keywords"]').textContent = langData.storyKeywords;
-            document.getElementById('story-keywords').placeholder = langData.storyKeywordsPlaceholder;
             document.querySelector('#dynamic-narrative label[for="story-style"]').textContent = langData.storyStyle;
             document.querySelector('#dynamic-narrative label[for="story-length"]').textContent = langData.storyLength;
             
@@ -1506,8 +1503,8 @@
             const data = await response.json();
             const imagePreview = document.getElementById('image-preview');
             
-            if (data.image) {
-                imagePreview.innerHTML = `<img src="data:image/png;base64,${data.image}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
+            if (data.image_url) {
+                imagePreview.innerHTML = `<img src="${data.image_url}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
             }
         } catch (error) {
             console.error('生成图像出错:', error);
@@ -1597,16 +1594,68 @@
         document.getElementById('text-preview').innerHTML = '';
     }
     
+    // 更新场景输入框
+    function updateSceneInputs() {
+        const length = document.getElementById('story-length').value;
+        const sceneInputsDiv = document.getElementById('scene-inputs');
+        
+        // 根据故事长度确定场景数量
+        let sceneCount = 3; // 默认短篇
+        if (length === 'medium') {
+            sceneCount = 5;
+        } else if (length === 'long') {
+            sceneCount = 8;
+        }
+        
+        // 清空现有输入
+        sceneInputsDiv.innerHTML = '';
+        
+        // 生成场景输入框
+        for (let i = 0; i < sceneCount; i++) {
+            let sceneType = '场景';
+            if (i === 0) {
+                sceneType = '开始场景';
+            } else if (i === sceneCount - 1) {
+                sceneType = '结尾场景';
+            } else if (i === Math.floor(sceneCount / 2)) {
+                sceneType = '转折场景';
+            }
+            
+            const inputGroup = document.createElement('div');
+            inputGroup.className = 'input-group';
+            inputGroup.innerHTML = `
+                <label for="scene-keywords-${i}">${sceneType}关键词</label>
+                <input type="text" id="scene-keywords-${i}" placeholder="请输入${sceneType}的关键词，用逗号分隔">
+            `;
+            sceneInputsDiv.appendChild(inputGroup);
+        }
+    }
+    
+    // 初始化场景输入
+    updateSceneInputs();
+    
     // 生成故事
     async function generateStory() {
-        const keywords = document.getElementById('story-keywords').value;
-        const style = document.getElementById('story-style').value;
         const length = document.getElementById('story-length').value;
+        const style = document.getElementById('story-style').value;
         const loadingElement = document.getElementById('story-loading');
         
-        if (!keywords) {
-            alert('请输入关键词');
-            return;
+        // 收集所有场景的关键词
+        let sceneCount = 3;
+        if (length === 'medium') {
+            sceneCount = 5;
+        } else if (length === 'long') {
+            sceneCount = 8;
+        }
+        
+        const sceneKeywords = [];
+        for (let i = 0; i < sceneCount; i++) {
+            const keywords = document.getElementById(`scene-keywords-${i}`).value;
+            if (!keywords) {
+                alert(`请输入第${i + 1}个场景的关键词`);
+                return;
+            }
+            sceneKeywords.push(keywords);
         }
         
         loadingElement.classList.add('active');
@@ -1626,7 +1675,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    keywords: keywords,
+                    scene_keywords: sceneKeywords,
                     story_style: style,
                     story_length: length,
                     modelSettings: modelSettings // 传递模型设置
@@ -1647,10 +1696,21 @@
                 data.story.forEach((item, index) => {
                     const storyItem = document.createElement('div');
                     storyItem.className = 'story-item';
+                    // 检查image是否是Base64编码（以data:开头）还是URL
+                    let imageSrc;
+                    if (item.image) {
+                        if (item.image.startsWith('data:')) {
+                            // 是Base64编码
+                            imageSrc = item.image;
+                        } else {
+                            // 是URL
+                            imageSrc = item.image;
+                        }
+                    }
                     storyItem.innerHTML = `
                         <h3>场景 ${index + 1}</h3>
                         <p class="story-caption">${item.caption}</p>
-                        ${item.image ? `<img src="data:image/png;base64,${item.image}" alt="场景 ${index + 1}">` : ''}
+                        ${item.image ? `<img src="${imageSrc}" alt="场景 ${index + 1}">` : ''}
                     `;
                     storyPreview.appendChild(storyItem);
                 });
@@ -1661,9 +1721,23 @@
                     const timelineItem = document.createElement('div');
                     timelineItem.className = 'timeline-item';
                     timelineItem.draggable = true;
+                    // 检查image是否是Base64编码（以data:开头）还是URL
+                    let imageSrc;
+                    if (item.image) {
+                        if (item.image.startsWith('data:')) {
+                            // 是Base64编码
+                            imageSrc = item.image;
+                        } else {
+                            // 是URL
+                            imageSrc = item.image;
+                        }
+                    }
                     timelineItem.innerHTML = `
                         <h4>场景 ${index + 1}</h4>
+                        ${item.image ? `<img src="${imageSrc}" alt="场景 ${index + 1}" style="max-width: 100%; height: auto; margin: 10px 0;">` : ''}
                         <p>${item.caption.substring(0, 30)}${item.caption.length > 30 ? '...' : ''}</p>
+                        <textarea class="timeline-description" placeholder="编辑场景描述">${item.caption}</textarea>
+                        <button class="btn btn-small" onclick="updateSceneDescription(${index})">更新</button>
                     `;
                     timelineItems.appendChild(timelineItem);
                 });
@@ -1676,9 +1750,23 @@
         }
     }
     
+    // 更新场景描述
+    function updateSceneDescription(index) {
+        const timelineItems = document.querySelectorAll('.timeline-item');
+        const textarea = timelineItems[index].querySelector('.timeline-description');
+        const newDescription = textarea.value;
+        
+        // 更新时间轴显示
+        const contentDiv = timelineItems[index].querySelector('p');
+        contentDiv.textContent = newDescription.substring(0, 30) + (newDescription.length > 30 ? '...' : '');
+    }
+    
     // 清空故事
     function clearStory() {
-        document.getElementById('story-keywords').value = '';
+        document.getElementById('story-style').value = 'fantasy';
+        document.getElementById('story-length').value = 'short';
+        // 重新生成场景输入
+        updateSceneInputs();
         document.getElementById('story-preview').innerHTML = '';
         document.getElementById('timeline-items').innerHTML = '';
     }
@@ -1761,63 +1849,82 @@
     
     // 从时间轴生成故事
     async function generateStoryFromTimeline() {
+        console.log('开始生成连贯故事');
         const timelineItems = document.querySelectorAll('.timeline-item');
+        console.log('时间轴项数量:', timelineItems.length);
         if (timelineItems.length === 0) {
             alert('时间轴为空，请先生成故事');
             return;
         }
         
-        const scenes = [];
+        // 提取场景描述列表
+        const sceneDescriptions = [];
         timelineItems.forEach((item, index) => {
-            scenes.push({
-                id: index + 1,
-                caption: item.querySelector('p').textContent
-            });
+            const textarea = item.querySelector('.timeline-description');
+            let description;
+            if (textarea) {
+                description = textarea.value;
+            } else {
+                const pElement = item.querySelector('p');
+                description = pElement ? pElement.textContent : '';
+            }
+            sceneDescriptions.push(description);
+            console.log(`场景${index + 1}描述:`, description);
         });
         
+        // 获取故事风格
+        const storyStyle = document.getElementById('story-style').value;
+        console.log('故事风格:', storyStyle);
+        
         try {
-            // 获取模型设置
-            const savedSettings = localStorage.getItem('modelSettings');
-            let modelSettings = null;
+            // 构建FormData
+            const formData = new FormData();
             
-            if (savedSettings) {
-                modelSettings = JSON.parse(savedSettings);
-            }
-            
-            const response = await fetch('http://localhost:8000/api/generate-story-from-timeline', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    scenes: scenes,
-                    modelSettings: modelSettings // 传递模型设置
-                })
+            // 添加场景描述
+            sceneDescriptions.forEach((description, index) => {
+                formData.append('scene_descriptions', description);
+                console.log(`添加场景${index + 1}描述到FormData`);
             });
             
+            // 添加故事风格
+            formData.append('story_style', storyStyle);
+            console.log('添加故事风格到FormData');
+            
+            // 获取模型设置
+            const savedSettings = localStorage.getItem('modelSettings');
+            if (savedSettings) {
+                formData.append('modelSettings', savedSettings);
+                console.log('添加模型设置到FormData');
+            }
+            
+            // 调用正确的API端点
+            console.log('开始发送请求到/api/generate-coherent-story');
+            const response = await fetch('http://localhost:8000/api/generate-coherent-story', {
+                method: 'POST',
+                body: formData
+            });
+            
+            console.log('响应状态:', response.status);
             if (!response.ok) {
-                throw new Error('生成故事失败');
+                throw new Error(`生成故事失败，状态码: ${response.status}`);
             }
             
             const data = await response.json();
+            console.log('响应数据:', data);
             const storyPreview = document.getElementById('story-preview');
             
             if (data.story) {
-                storyPreview.innerHTML = '';
-                data.story.forEach((item, index) => {
-                    const storyItem = document.createElement('div');
-                    storyItem.className = 'story-item';
-                    storyItem.innerHTML = `
-                        <h3>场景 ${index + 1}</h3>
-                        <p class="story-caption">${item.caption}</p>
-                        ${item.image ? `<img src="data:image/png;base64,${item.image}" alt="场景 ${index + 1}">` : ''}
-                    `;
-                    storyPreview.appendChild(storyItem);
-                });
+                storyPreview.innerHTML = `
+                    <h3>连贯故事</h3>
+                    <p>${data.story}</p>
+                `;
+                console.log('成功显示连贯故事');
+            } else {
+                throw new Error('响应中没有故事内容');
             }
         } catch (error) {
             console.error('生成故事出错:', error);
-            document.getElementById('story-preview').innerHTML = '<p style="color: red;">生成故事失败，请重试</p>';
+            document.getElementById('story-preview').innerHTML = `<p style="color: red;">生成故事失败: ${error.message}</p>`;
         }
     }
     

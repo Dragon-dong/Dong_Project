@@ -101,7 +101,7 @@ class LLMModel:
         story_style: str = "fantasy",
         story_length: str = "medium"
     ) -> List[Dict[str, str]]:
-        """生成动态叙事故事
+        """生成动态叙事故事（旧格式）
         
         Args:
             keywords: 关键词，用逗号分隔
@@ -158,6 +158,76 @@ class LLMModel:
             for i, scene in enumerate(default_scenes):
                 caption = scene.get("caption", "")
                 enhanced_prompt = self._generate_enhanced_image_prompt(caption, keywords, story_style)
+                scene["enhanced_prompt"] = enhanced_prompt
+            return default_scenes
+    
+    def generate_story_from_scenes(
+        self, 
+        scene_keywords: List[str], 
+        story_style: str = "fantasy",
+        story_length: str = "medium"
+    ) -> List[Dict[str, str]]:
+        """根据场景关键词列表生成动态叙事故事（新格式）
+        
+        Args:
+            scene_keywords: 场景关键词列表，每个元素对应一个场景的关键词
+            story_style: 故事风格
+            story_length: 故事长度
+            
+        Returns:
+            故事场景列表，每个场景包含caption（文案）和enhanced_prompt（增强的图像生成提示词）
+        """
+        try:
+            # 场景数量由scene_keywords的长度决定
+            scene_count = len(scene_keywords)
+            
+            # 构建故事生成提示词
+            prompt = f"请根据以下场景关键词列表生成一个{story_style}风格的故事，包含{scene_count}个连续的场景：\n"
+            for i, keywords in enumerate(scene_keywords, 1):
+                prompt += f"场景{i}关键词：{keywords}\n"
+            prompt += f"风格：{story_style}\n"
+            prompt += f"长度：{story_length}\n"
+            prompt += "\n要求：\n"
+            prompt += f"1. 生成{scene_count}个清晰的场景，每个场景描述一个具体的画面\n"
+            prompt += "2. 每个场景以'场景X：'开头，其中X是场景序号\n"
+            prompt += "3. 场景之间要有逻辑连贯性，形成完整的故事\n"
+            prompt += "4. 每个场景描述要详细，包含人物、环境、动作等元素\n"
+            prompt += "5. 每个场景必须自然融入对应场景的关键词\n"
+            prompt += "6. 语言要生动形象，符合所选风格\n"
+            prompt += "7. 只返回故事内容，不要添加其他说明"
+            
+            print(f"生成{story_style}风格故事，场景数量: {scene_count}")
+            
+            # 生成故事
+            story_content = self.generate_text(prompt, max_tokens=3000)
+            
+            # 解析故事场景
+            scenes = self._parse_story_scenes(story_content, scene_count, story_style)
+            
+            # 为每个场景生成增强的图像生成提示词
+            for i, scene in enumerate(scenes):
+                caption = scene.get("caption", "")
+                # 使用对应场景的关键词生成增强提示词
+                scene_keyword = scene_keywords[i] if i < len(scene_keywords) else ""
+                # 生成增强的图像生成提示词
+                enhanced_prompt = self._generate_enhanced_image_prompt(caption, scene_keyword, story_style)
+                scene["enhanced_prompt"] = enhanced_prompt
+            
+            return scenes
+        except Exception as e:
+            print(f"生成故事失败: {str(e)}")
+            # 返回默认故事场景
+            default_scenes = []
+            for i, keywords in enumerate(scene_keywords):
+                default_scenes.append({
+                    "caption": f"这是故事的第{i+1}个场景，描述了一个{story_style}风格的画面。{keywords.split(',')[0]}是这个场景的核心元素。",
+                    "image": f"https://picsum.photos/seed/story{i+1}/512/512"  # 添加占位图像
+                })
+            # 为默认场景生成增强的图像生成提示词
+            for i, scene in enumerate(default_scenes):
+                caption = scene.get("caption", "")
+                scene_keyword = scene_keywords[i] if i < len(scene_keywords) else ""
+                enhanced_prompt = self._generate_enhanced_image_prompt(caption, scene_keyword, story_style)
                 scene["enhanced_prompt"] = enhanced_prompt
             return default_scenes
     
