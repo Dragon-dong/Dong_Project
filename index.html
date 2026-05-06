@@ -1552,7 +1552,7 @@
         
         try {
             const formData = new FormData();
-            formData.append('image', file);
+            formData.append('file', file);
             
             // 获取模型设置
             const savedSettings = localStorage.getItem('modelSettings');
@@ -1803,8 +1803,8 @@
         
         try {
             const formData = new FormData();
-            formData.append('image', file);
-            formData.append('instruction', instruction);
+            formData.append('file', file);
+            formData.append('style_instruction', instruction);
             
             // 获取模型设置
             const savedSettings = localStorage.getItem('modelSettings');
@@ -1827,8 +1827,8 @@
             const data = await response.json();
             const stylePreview = document.getElementById('style-preview');
             
-            if (data.image) {
-                stylePreview.innerHTML = `<img src="data:image/png;base64,${data.image}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
+            if (data.image_url) {
+                stylePreview.innerHTML = `<img src="${data.image_url}" style="max-width: 100%; height: auto; border-radius: 8px;">`;
             }
         } catch (error) {
             console.error('风格迁移出错:', error);

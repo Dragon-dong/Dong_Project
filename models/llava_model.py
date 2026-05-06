@@ -31,7 +31,7 @@ class LLaVAModel:
         if not self.api_key:
             # 使用提供的API Key
             self.api_key = "sk-a2f939f05191490184744855395f348c"
-            print("⚠️  未设置环境变量DASHSCOPE_API_KEY，使用默认API Key")
+            print("[WARN]  未设置环境变量DASHSCOPE_API_KEY，使用默认API Key")
         self.api_url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
         print("OK: 阿里云百炼API配置初始化成功")
     
@@ -49,11 +49,11 @@ class LLaVAModel:
                 response = requests.get("https://huggingface.co", timeout=3)
                 print("OK: 网络连接正常")
             except Timeout:
-                print("⚠️  网络连接超时，直接进入模拟模式")
+                print("[WARN]  网络连接超时，直接进入模拟模式")
                 self.model_loaded = False
                 return
             except Exception:
-                print("⚠️  网络连接失败，直接进入模拟模式")
+                print("[WARN]  网络连接失败，直接进入模拟模式")
                 self.model_loaded = False
                 return
             
@@ -230,10 +230,10 @@ class LLaVAModel:
             else:
                 # 请求失败
                 error_msg = f"API请求失败，状态码: {response.status_code}, 内容: {response.text}"
-                print(f"✗ {error_msg}")
+                print(f"[ERROR] {error_msg}")
                 raise Exception(error_msg)
         except Exception as e:
-            print(f"✗ 调用阿里云百炼API失败: {str(e)}")
+            print(f"[ERROR] 调用阿里云百炼API失败: {str(e)}")
             raise
     
     def image_bytes_to_text(

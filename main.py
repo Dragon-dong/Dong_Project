@@ -212,7 +212,7 @@ async def image_to_text(file: UploadFile = File(...)):
                 top_p=0.9
             )
         except Exception as e:
-            print(f"⚠️  模型调用失败，返回模拟数据: {str(e)}")
+            print(f"[WARN]  模型调用失败，返回模拟数据: {str(e)}")
             # 直接返回模拟描述，避免长时间等待
             description = "这是一个模拟的图像描述。由于模型加载失败，无法提供真实的图像分析。在实际应用中，这里会返回基于图像内容的详细描述，包括物体、场景、颜色、动作等信息。"
         
@@ -410,12 +410,15 @@ async def style_transfer(
         qwen_model = get_qwen_image_edit_model()
         
         # 执行风格迁移
-        image = qwen_model.style_transfer(
+        style_transfer_result = qwen_model.style_transfer(
             image_bytes=image_bytes,
             style_instruction=style_instruction,
             width=512,
             height=512
         )
+        
+        # 从返回结果中提取图像
+        image = style_transfer_result.get("image")
         
         # 转换为Base64
         image_base64 = qwen_model.image_to_base64(image)
@@ -425,6 +428,7 @@ async def style_transfer(
             "status": "success",
             "image_url": image_base64,  # 返回Base64编码的图像
             "style_instruction": style_instruction,
+            "prompt": style_transfer_result.get("prompt", "无"),
             "image_filename": file.filename
         }
         

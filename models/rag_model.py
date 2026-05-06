@@ -167,6 +167,15 @@ class RAGModel:
                 "features": ["黑白灰层次", "笔墨韵味", "意境深远", "留白"],
                 "examples": ["山水画", "花鸟画", "人物画"],
                 "prompt_keywords": ["ink wash", "black and white", "traditional Chinese", "atmospheric", "minimalist"]
+            },
+            {
+                "id": 11,
+                "style_name": "黑白风格",
+                "style_en": "Black and White",
+                "description": "黑白风格去除了色彩，仅使用黑色、白色和灰色层次来表现图像，强调构图、光影和质感。",
+                "features": ["无色彩", "明暗对比", "层次丰富", "质感表现"],
+                "examples": ["黑白照片", "素描", "黑白插画"],
+                "prompt_keywords": ["black and white", "monochrome", "grayscale", "high contrast", "dramatic lighting"]
             }
         ]
         
