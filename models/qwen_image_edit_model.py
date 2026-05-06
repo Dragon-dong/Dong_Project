@@ -21,7 +21,7 @@ class QwenImageEditModel:
     def __init__(self):
         """初始化Qwen-Image-Edit模型"""
         # 使用阿里云百炼API Key
-        self.api_key = os.getenv("DASHSCOPE_API_KEY", "sk-a2f939f05191490184744855395f348c")
+        self.api_key = os.getenv("DASHSCOPE_API_KEY", "从阿里云获取api")
         # 设置API基础URL
         dashscope.base_http_api_url = 'https://dashscope.aliyuncs.com/api/v1'
         
