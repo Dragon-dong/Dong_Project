@@ -30,7 +30,7 @@ class LLMModel:
             self.api_key = os.getenv("DASHSCOPE_API_KEY")
             if not self.api_key:
                 # 使用提供的API Key
-                self.api_key = "sk-a2f939f05191490184744855395f348c"
+                self.api_key = "从阿里云获取api"
                 print("未设置环境变量DASHSCOPE_API_KEY，使用默认API Key")
             self.api_url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
             self.model = "qwen3-vl-plus"
